@@ -29,21 +29,41 @@ DEFINE_bool(enable_collision_detection, false,
             "enable collision detection in planning");
 
 // scenario related
-DEFINE_string(
-    scenario_lane_follow_config_file,
-    "/apollo/modules/planning/conf/scenario_lane_follow_config.pb.txt",
-    "The lane follow scenario configuration file");
+DEFINE_string(scenario_bare_intersection_unprotected_config_file,
+              "/apollo/modules/planning/conf/"
+              "scenario/bare_intersection_unprotected_config.pb.txt",
+              "The bare_intersection_unprotected scenario configuration file");
+DEFINE_string(scenario_lane_follow_config_file,
+              "/apollo/modules/planning/conf/"
+              "scenario/lane_follow_config.pb.txt",
+              "The lane follow scenario configuration file");
 DEFINE_string(scenario_side_pass_config_file,
-              "/apollo/modules/planning/conf/scenario_side_pass_config.pb.txt",
+              "/apollo/modules/planning/conf/scenario/side_pass_config.pb.txt",
               "side pass scenario configuration file");
 DEFINE_string(scenario_stop_sign_unprotected_config_file,
               "/apollo/modules/planning/conf/"
-              "scenario_stop_sign_unprotected_config.pb.txt",
+              "scenario/stop_sign_unprotected_config.pb.txt",
               "stop_sign_unprotected scenario configuration file");
-DEFINE_string(scenario_traffic_light_right_turn_unprotected_config_file,
+DEFINE_string(scenario_traffic_light_protected_config_file,
               "/apollo/modules/planning/conf/"
-              "scenario_traffic_light_right_turn_unprotected_config.pb.txt",
-              "scenario_traffic_light_right_turn_unprotected config file");
+              "scenario/traffic_light_protected_config.pb.txt",
+              "scenario_traffic_light_protected config file");
+DEFINE_string(scenario_traffic_light_unprotected_left_turn_config_file,
+              "/apollo/modules/planning/conf/"
+              "scenario/traffic_light_unprotected_left_turn_config.pb.txt",
+              "scenario_traffic_light_unprotected_left_turn config file");
+DEFINE_string(scenario_traffic_light_unprotected_right_turn_config_file,
+              "/apollo/modules/planning/conf/"
+              "scenario/traffic_light_unprotected_right_turn_config.pb.txt",
+              "scenario_traffic_light_unprotected_right_turn config file");
+DEFINE_string(scenario_valet_parking_config_file,
+              "/apollo/modules/planning/conf/"
+              "scenario/valet_parking_config.pb.txt",
+              "scenario_valet_parking config file");
+DEFINE_string(scenario_narrow_street_u_turn_config_file,
+              "/apollo/modules/planning/conf/"
+              "scenario/narrow_street_u_turn_config.pb.txt",
+              "scenario_narrow_street_u_turn config file");
 
 DEFINE_bool(enable_scenario_side_pass, true,
             "enable side pass scenario in planning");
@@ -54,10 +74,12 @@ DEFINE_bool(enable_scenario_side_pass_multiple_parked_obstacles, true,
             "enable ADC to side-pass multiple parked obstacles without"
             "worrying if the obstacles are blocked by others.");
 
-DEFINE_bool(enable_scenario_stop_sign_unprotected, true,
-            "enable stop_sign_unprotected scenario in planning");
-DEFINE_bool(enable_scenario_traffic_light_right_turn_unprotected, false,
-            "enable traffic_light_right_turn_unprotected scenario in planning");
+DEFINE_bool(enable_scenario_bare_intersection, false,
+            "enable bare_intersection scenarios in planning");
+DEFINE_bool(enable_scenario_stop_sign, true,
+            "enable stop_sign scenarios in planning");
+DEFINE_bool(enable_scenario_traffic_light, true,
+            "enable traffic_light scenarios in planning");
 
 DEFINE_string(traffic_rule_config_filename,
               "/apollo/modules/planning/conf/traffic_rule_config.pb.txt",
@@ -125,7 +147,7 @@ DEFINE_double(max_collision_distance, 0.1,
               "equal to this (meters)");
 
 DEFINE_bool(ignore_overlapped_obstacle, false,
-            "ingore obstacle that overlapps with ADC. Only enable this flag "
+            "ignore obstacle that overlapps with ADC. Only enable this flag "
             "when you found fake obstacle result from poorly lidar");
 
 DEFINE_double(replan_lateral_distance_threshold, 0.5,
@@ -226,7 +248,8 @@ DEFINE_double(max_stop_speed, 0.2, "max speed(m/s) to be considered as a stop");
 DEFINE_double(signal_light_min_pass_s_distance, 4.0,
               "min s_distance for adc to be considered "
               "have passed signal_light (stop_line_end_s)");
-
+DEFINE_double(signal_expire_time_sec, 5.0,
+              "traffic light signal info read expire time in sec");
 DEFINE_string(destination_obstacle_id, "DEST",
               "obstacle id for converting destination to an obstacle");
 DEFINE_double(destination_check_distance, 5.0,
@@ -373,6 +396,8 @@ DEFINE_double(
     "weight for lateral obstacle distance in lateral trajectory optimization");
 DEFINE_double(lateral_third_order_derivative_max, 0.1,
               "the maximal allowance for lateral third order derivative");
+DEFINE_double(lateral_derivative_bound_default, 2.0,
+              "the default value for lateral derivative bound.");
 DEFINE_double(max_s_lateral_optimization, 60.0,
               "The maximal s for lateral optimization.");
 DEFINE_double(default_delta_s_lateral_optimization, 1.0,
@@ -396,9 +421,6 @@ DEFINE_double(speed_bump_speed_limit, 4.4704,
 DEFINE_double(navigation_fallback_cruise_time, 8.0,
               "The time range of fallback cruise under navigation mode.");
 
-DEFINE_bool(enable_stitch_last_trajectory, true,
-            "To control whether to stitch last trajectory or not.");
-
 DEFINE_bool(enable_planning_pad_msg, false,
             "To control whether to enable planning pad message.");
 
@@ -415,7 +437,7 @@ DEFINE_double(open_space_prediction_time_horizon, 2.0,
               "given by prediction");
 
 DEFINE_bool(enable_perception_obstacles, true,
-            "enable the open space planner to take percetion obstacles into "
+            "enable the open space planner to take perception obstacles into "
             "consideration");
 
 DEFINE_bool(enable_open_space_planner_thread, true,
@@ -428,7 +450,7 @@ DEFINE_bool(open_space_planner_switchable, false,
 DEFINE_bool(use_dual_variable_warm_start, true,
             "whether or not enable dual variable warm start ");
 
-DEFINE_bool(use_gear_shift_trajectory, true,
+DEFINE_bool(use_gear_shift_trajectory, false,
             "allow some time for the vehicle to shift gear");
 
 DEFINE_bool(use_osqp_optimizer_for_qp_st, false,
@@ -456,7 +478,7 @@ DEFINE_bool(
     "True to enable planning smoother among different planning cycles.");
 DEFINE_double(smoother_stop_distance, 10.0,
               "(unit: meter) for ADC stop, if it is close to the stop point "
-              "within this threshold, current planning will be smoothered.");
+              "within this threshold, current planning will be smoothed.");
 
 DEFINE_double(side_pass_road_buffer, 0.05,
               "(unit: meter) for side pass scenario ");
@@ -477,3 +499,18 @@ DEFINE_bool(side_pass_use_actual_laneinfo_for_path_generation, false,
             " or to use the planning starting-point's laneinfo all the time.");
 DEFINE_double(side_pass_driving_width_l_buffer, 0.1,
               "(unit: meter) for side pass driving width l buffer");
+
+DEFINE_bool(enable_parallel_hybrid_a, false,
+            "True to enable hybrid a* parallel implementation.");
+DEFINE_bool(enable_parallel_open_space_smoother, false,
+            "True to enable open space smoother parallel implementation.");
+
+DEFINE_double(vehicle_low_speed_threshold, 1.0, "Vehicle low speed threshold.");
+
+DEFINE_bool(enable_cuda, false, "True to enable cuda parallel implementation.");
+
+DEFINE_bool(enable_nonscenario_side_pass, false,
+            "True to enable side pass without scenario management");
+
+DEFINE_bool(enable_soft_speed_limit, false,
+            "True to set soft speed limit guided by path optimization result");

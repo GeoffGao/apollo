@@ -101,6 +101,9 @@
 		"showPNCMonitor": {
 			"default": false
 		},
+		"showDataCollectionMonitor": {
+			"default": false
+		},
 		"enableSimControl": {
 			"default": false
 		},
@@ -213,6 +216,10 @@
 			"default": true,
 			"menuId": "positionLocalization"
 		},
+		"showPositionShadow": {
+			"default": false,
+			"menuId": "positionShadow"
+		},
 		"showMapCrosswalk": {
 			"default": true,
 			"menuId": "mapCrosswalk"
@@ -252,6 +259,10 @@
 		"showMapParkingSpace": {
 			"default": true,
 			"menuId": "mapParkingSpace"
+		},
+		"showMapLaneId": {
+			"default": false,
+			"menuId": "mapLaneId"
 		}
 	},
 	"routingEditor": {

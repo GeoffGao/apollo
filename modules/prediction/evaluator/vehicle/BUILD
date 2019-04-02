@@ -109,11 +109,19 @@ cc_library(
         "junction_mlp_evaluator.h",
     ],
     deps = [
+        "//modules/common/math:geometry",
         "//modules/prediction/common:feature_output",
         "//modules/prediction/common:prediction_util",
+        "//modules/prediction/container:container_manager",
         "//modules/prediction/evaluator",
-        "//modules/prediction/proto:fnn_vehicle_model_proto",
-    ],
+    ] + select({
+        "//tools/platforms:use_gpu": [
+            "@pytorch",
+        ],
+        "//conditions:default": [
+            "@pytorch",
+        ],
+    }),
 )
 
 cc_test(
@@ -143,10 +151,17 @@ cc_library(
         "cruise_mlp_evaluator.h",
     ],
     deps = [
+        "//modules/prediction/common:prediction_util",
         "//modules/prediction/container:container_manager",
         "//modules/prediction/evaluator",
-        "//modules/prediction/network/cruise_model",
-    ],
+    ] + select({
+        "//tools/platforms:use_gpu": [
+            "@pytorch",
+        ],
+        "//conditions:default": [
+            "@pytorch",
+        ],
+    }),
 )
 
 cc_test(
@@ -163,6 +178,27 @@ cc_test(
         "//modules/prediction/common:kml_map_based_test",
         "//modules/prediction/evaluator/vehicle:cruise_mlp_evaluator",
     ],
+)
+
+cc_library(
+    name = "lane_scanning_evaluator",
+    srcs = [
+        "lane_scanning_evaluator.cc",
+    ],
+    hdrs = [
+        "lane_scanning_evaluator.h",
+    ],
+    deps = [
+        "//modules/prediction/container:container_manager",
+        "//modules/prediction/evaluator",
+    ] + select({
+        "//tools/platforms:use_gpu": [
+            "@pytorch",
+        ],
+        "//conditions:default": [
+            "@pytorch",
+        ],
+    }),
 )
 
 cpplint()

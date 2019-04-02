@@ -16,6 +16,7 @@
 
 #include "modules/prediction/predictor/empty/empty_predictor.h"
 
+#include "cyber/common/file.h"
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/container/obstacles/obstacles_container.h"
 #include "modules/prediction/evaluator/vehicle/mlp_evaluator.h"
@@ -26,9 +27,9 @@ namespace prediction {
 class EmptyPredictorTest : public KMLMapBasedTest {
  public:
   virtual void SetUp() {
-    std::string file =
+    const std::string file =
         "modules/prediction/testdata/single_perception_vehicle_onlane.pb.txt";
-    ::apollo::common::util::GetProtoFromFile(file, &perception_obstacles_);
+    cyber::common::GetProtoFromFile(file, &perception_obstacles_);
   }
 
  protected:
@@ -38,7 +39,7 @@ class EmptyPredictorTest : public KMLMapBasedTest {
 TEST_F(EmptyPredictorTest, General) {
   EXPECT_DOUBLE_EQ(perception_obstacles_.header().timestamp_sec(),
                    1501183430.161906);
-  ::apollo::perception::PerceptionObstacle perception_obstacle =
+  apollo::perception::PerceptionObstacle perception_obstacle =
       perception_obstacles_.perception_obstacle(0);
   EXPECT_EQ(perception_obstacle.id(), 1);
 
@@ -46,7 +47,7 @@ TEST_F(EmptyPredictorTest, General) {
   ObstaclesContainer container;
   container.Insert(perception_obstacles_);
   Obstacle* obstacle_ptr = container.GetObstacle(1);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
   evaluator.Evaluate(obstacle_ptr);
   EmptyPredictor predictor;
   predictor.Predict(obstacle_ptr);

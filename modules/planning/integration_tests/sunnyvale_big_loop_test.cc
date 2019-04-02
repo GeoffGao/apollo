@@ -19,15 +19,13 @@
 #include "modules/map/hdmap/hdmap_util.h"
 #include "modules/planning/common/planning_context.h"
 #include "modules/planning/common/planning_gflags.h"
-#include "modules/planning/scenarios/stage.h"
-#include "modules/planning/scenarios/stop_sign/stop_sign_unprotected/stop_sign_unprotected_scenario.h"
 #include "modules/planning/integration_tests/planning_test_base.h"
+#include "modules/planning/scenarios/stop_sign/unprotected/stop_sign_unprotected_scenario.h"
 
 namespace apollo {
 namespace planning {
 
 using apollo::common::time::Clock;
-using apollo::planning::scenario::stop_sign::StopSignUnprotectedContext;
 
 /**
  * @class SunnyvaleBigLoopTest
@@ -54,16 +52,15 @@ class SunnyvaleBigLoopTest : public PlanningTestBase {
     FLAGS_enable_multi_thread_in_dp_poly_path = false;
 
     FLAGS_enable_scenario_side_pass = false;
-    FLAGS_enable_scenario_stop_sign_unprotected = false;
-    FLAGS_enable_scenario_traffic_light_right_turn_unprotected = false;
+    FLAGS_enable_scenario_stop_sign = false;
+    FLAGS_enable_scenario_traffic_light = false;
     FLAGS_enable_rss_info = false;
 
     ENABLE_RULE(TrafficRuleConfig::CROSSWALK, false);
     ENABLE_RULE(TrafficRuleConfig::DESTINATION, false);
     ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, false);
     ENABLE_RULE(TrafficRuleConfig::PULL_OVER, false);
-    ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
-    ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
+    ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, false);
   }
 };
 
@@ -74,7 +71,7 @@ class SunnyvaleBigLoopTest : public PlanningTestBase {
  *   decision: STOP
  */
 TEST_F(SunnyvaleBigLoopTest, stop_sign_01) {
-  FLAGS_enable_scenario_stop_sign_unprotected = true;
+  FLAGS_enable_scenario_stop_sign = true;
 
   std::string seq_num = "1";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -86,10 +83,10 @@ TEST_F(SunnyvaleBigLoopTest, stop_sign_01) {
   RUN_GOLDEN_TEST_DECISION(0);
 
   // check PlanningContext content
-  auto* scenario_info = PlanningContext::GetScenarioInfo();
-  EXPECT_EQ(scenario_info->next_stop_sign_overlap.object_id, "1017");
-  EXPECT_EQ(scenario_info->stop_done_overlap_id, "");
-  EXPECT_EQ(scenario_info->stop_sign_wait_for_obstacles.size(), 0);
+  const auto& stop_sign_status = PlanningContext::Planningstatus().stop_sign();
+  EXPECT_EQ(stop_sign_status.current_stop_sign_overlap_id(), "");
+  EXPECT_EQ(stop_sign_status.done_stop_sign_overlap_id(), "");
+  EXPECT_EQ(stop_sign_status.wait_for_obstacle_id_size(), 0);
 }
 
 /*
@@ -98,7 +95,7 @@ TEST_F(SunnyvaleBigLoopTest, stop_sign_01) {
  *   decision: STOP
  */
 TEST_F(SunnyvaleBigLoopTest, stop_sign_02) {
-  FLAGS_enable_scenario_stop_sign_unprotected = true;
+  FLAGS_enable_scenario_stop_sign = true;
 
   std::string seq_num = "2";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -107,14 +104,13 @@ TEST_F(SunnyvaleBigLoopTest, stop_sign_02) {
   FLAGS_test_chassis_file = seq_num + "_chassis.pb.txt";
   PlanningTestBase::SetUp();
 
-
   RUN_GOLDEN_TEST_DECISION(0);
 
   // check PlanningContext content
-  auto* scenario_info = PlanningContext::GetScenarioInfo();
-  EXPECT_EQ(scenario_info->next_stop_sign_overlap.object_id, "1017");
-  EXPECT_EQ(scenario_info->stop_done_overlap_id, "");
-  EXPECT_EQ(scenario_info->stop_sign_wait_for_obstacles.size(), 0);
+  const auto& stop_sign_status = PlanningContext::Planningstatus().stop_sign();
+  EXPECT_EQ(stop_sign_status.current_stop_sign_overlap_id(), "1017");
+  EXPECT_EQ(stop_sign_status.done_stop_sign_overlap_id(), "");
+  EXPECT_EQ(stop_sign_status.wait_for_obstacle_id_size(), 0);
 }
 
 /*
@@ -123,7 +119,7 @@ TEST_F(SunnyvaleBigLoopTest, stop_sign_02) {
  *   decision: STOP
  */
 TEST_F(SunnyvaleBigLoopTest, stop_sign_03) {
-  FLAGS_enable_scenario_stop_sign_unprotected = true;
+  FLAGS_enable_scenario_stop_sign = true;
 
   std::string seq_num = "2";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -136,10 +132,10 @@ TEST_F(SunnyvaleBigLoopTest, stop_sign_03) {
   RUN_GOLDEN_TEST_DECISION(0);
 
   // check PlanningContext content
-  auto* scenario_info = PlanningContext::GetScenarioInfo();
-  EXPECT_EQ(scenario_info->next_stop_sign_overlap.object_id, "1017");
-  EXPECT_EQ(scenario_info->stop_done_overlap_id, "");
-  EXPECT_EQ(scenario_info->stop_sign_wait_for_obstacles.size(), 0);
+  const auto& stop_sign_status = PlanningContext::Planningstatus().stop_sign();
+  EXPECT_EQ(stop_sign_status.current_stop_sign_overlap_id(), "1017");
+  EXPECT_EQ(stop_sign_status.done_stop_sign_overlap_id(), "");
+  EXPECT_EQ(stop_sign_status.wait_for_obstacle_id_size(), 0);
 
   usleep(1000);
 
@@ -147,10 +143,11 @@ TEST_F(SunnyvaleBigLoopTest, stop_sign_03) {
   RUN_GOLDEN_TEST_DECISION(1);
 
   // check PlanningContext content
-  scenario_info = PlanningContext::GetScenarioInfo();
-  EXPECT_EQ(scenario_info->next_stop_sign_overlap.object_id, "1017");
-  EXPECT_EQ(scenario_info->stop_done_overlap_id, "");
-  EXPECT_EQ(scenario_info->stop_sign_wait_for_obstacles.size(), 0);
+  const auto& stop_sign_status_2 =
+      PlanningContext::Planningstatus().stop_sign();
+  EXPECT_EQ(stop_sign_status_2.current_stop_sign_overlap_id(), "1017");
+  EXPECT_EQ(stop_sign_status_2.done_stop_sign_overlap_id(), "");
+  EXPECT_EQ(stop_sign_status_2.wait_for_obstacle_id_size(), 0);
 }
 
 /*
@@ -494,8 +491,7 @@ TEST_F(SunnyvaleBigLoopTest, stop_sign_08) {
 TEST_F(SunnyvaleBigLoopTest, keep_clear_01) {
   ENABLE_RULE(TrafficRuleConfig::CROSSWALK, false);
   ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, true);
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
-  ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, false);
 
   std::string seq_num = "101";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -515,8 +511,7 @@ TEST_F(SunnyvaleBigLoopTest, keep_clear_01) {
 TEST_F(SunnyvaleBigLoopTest, keep_clear_02) {
   ENABLE_RULE(TrafficRuleConfig::CROSSWALK, false);
   ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, true);
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
-  ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, false);
 
   std::string seq_num = "102";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -536,8 +531,7 @@ TEST_F(SunnyvaleBigLoopTest, keep_clear_02) {
 TEST_F(SunnyvaleBigLoopTest, keep_clear_03) {
   ENABLE_RULE(TrafficRuleConfig::CROSSWALK, false);
   ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, true);
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
-  ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, false);
 
   std::string seq_num = "103";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -557,8 +551,7 @@ TEST_F(SunnyvaleBigLoopTest, keep_clear_03) {
 TEST_F(SunnyvaleBigLoopTest, crosswalk_01) {
   ENABLE_RULE(TrafficRuleConfig::CROSSWALK, true);
   ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, false);
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
-  ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, true);
 
   std::string seq_num = "200";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -578,8 +571,7 @@ TEST_F(SunnyvaleBigLoopTest, crosswalk_01) {
 TEST_F(SunnyvaleBigLoopTest, crosswalk_02) {
   ENABLE_RULE(TrafficRuleConfig::CROSSWALK, true);
   ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, false);
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
-  ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, true);
 
   std::string seq_num = "201";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -598,17 +590,16 @@ TEST_F(SunnyvaleBigLoopTest, crosswalk_02) {
   EXPECT_EQ("11652", crosswalk_status->stop_time(0).obstacle_id());
 
   // step 2:
-  // timeout on static pesestrian
+  // timeout on static pedestrian
 
   // set PlanningStatus
   auto* crosswalk_config =
       PlanningTestBase::GetTrafficRuleConfig(TrafficRuleConfig::CROSSWALK);
   double stop_timeout = crosswalk_config->crosswalk().stop_timeout();
   double wait_time = stop_timeout + 0.5;
-  for (int i = 0; i < crosswalk_status->stop_time_size(); ++i) {
-    auto stop_time = crosswalk_status->mutable_stop_time(i);
-    if (stop_time->obstacle_id() == "11652") {
-      stop_time->set_obstacle_stop_timestamp(Clock::NowInSeconds() - wait_time);
+  for (auto& stop_time : *crosswalk_status->mutable_stop_time()) {
+    if (stop_time.obstacle_id() == "11652") {
+      stop_time.set_obstacle_stop_timestamp(Clock::NowInSeconds() - wait_time);
     }
   }
 
@@ -618,8 +609,7 @@ TEST_F(SunnyvaleBigLoopTest, crosswalk_02) {
 TEST_F(SunnyvaleBigLoopTest, traffic_light_green) {
   ENABLE_RULE(TrafficRuleConfig::CROSSWALK, false);
   ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, false);
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, true);
-  ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, true);
 
   std::string seq_num = "300";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -634,8 +624,7 @@ TEST_F(SunnyvaleBigLoopTest, traffic_light_green) {
 TEST_F(SunnyvaleBigLoopTest, change_lane_abort_for_fast_back_vehicle) {
   ENABLE_RULE(TrafficRuleConfig::CROSSWALK, false);
   ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, false);
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, true);
-  ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, true);
 
   std::string seq_num = "400";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -657,8 +646,7 @@ TEST_F(SunnyvaleBigLoopTest, destination_stop_01) {
   ENABLE_RULE(TrafficRuleConfig::DESTINATION, true);
   ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, false);
   ENABLE_RULE(TrafficRuleConfig::PULL_OVER, true);
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
-  ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, false);
 
   std::string seq_num = "600";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -685,8 +673,7 @@ TEST_F(SunnyvaleBigLoopTest, destination_pull_over_01) {
   ENABLE_RULE(TrafficRuleConfig::DESTINATION, true);
   ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, false);
   ENABLE_RULE(TrafficRuleConfig::PULL_OVER, true);
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
-  ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, false);
 
   std::string seq_num = "601";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -710,8 +697,7 @@ TEST_F(SunnyvaleBigLoopTest, destination_pull_over_01) {
 
   // check PlanningStatus value: PULL OVER
   auto* planning_status = PlanningContext::MutablePlanningStatus();
-  EXPECT_TRUE(planning_status->has_pull_over() &&
-              planning_status->pull_over().in_pull_over());
+  EXPECT_TRUE(planning_status->pull_over().in_pull_over());
   EXPECT_EQ(PullOverStatus::DESTINATION, planning_status->pull_over().reason());
 
   common::PointENU start_point_0 = planning_status->pull_over().start_point();
@@ -723,8 +709,7 @@ TEST_F(SunnyvaleBigLoopTest, destination_pull_over_01) {
   // check PULL OVER decision
   RUN_GOLDEN_TEST_DECISION(1);
 
-  EXPECT_TRUE(planning_status->has_pull_over() &&
-              planning_status->pull_over().in_pull_over());
+  EXPECT_TRUE(planning_status->pull_over().in_pull_over());
   EXPECT_EQ(PullOverStatus::DESTINATION, planning_status->pull_over().reason());
 
   common::PointENU start_point_1 = planning_status->pull_over().start_point();
@@ -752,8 +737,7 @@ TEST_F(SunnyvaleBigLoopTest, destination_pull_over_02) {
   ENABLE_RULE(TrafficRuleConfig::DESTINATION, true);
   ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, false);
   ENABLE_RULE(TrafficRuleConfig::PULL_OVER, true);
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
-  ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, false);
 
   std::string seq_num = "601";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
@@ -778,8 +762,7 @@ TEST_F(SunnyvaleBigLoopTest, destination_pull_over_02) {
 
   // check PlanningStatus value: PULL OVER
   auto* planning_status = PlanningContext::MutablePlanningStatus();
-  EXPECT_TRUE(planning_status->has_pull_over() &&
-              planning_status->pull_over().in_pull_over());
+  EXPECT_TRUE(planning_status->pull_over().in_pull_over());
   EXPECT_EQ(PullOverStatus::DESTINATION, planning_status->pull_over().reason());
 
   // step 2: pull over failed, stop inlane
@@ -809,7 +792,7 @@ TEST_F(SunnyvaleBigLoopTest, destination_pull_over_02) {
 /*
 // TODO(all): this test need rewrite
 TEST_F(SunnyvaleBigLoopTest, bypass_parked_bus) {
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, false);
   ENABLE_RULE(TrafficRuleConfig::KEEP_CLEAR, false);
 
   double acc_lower_bound = FLAGS_longitudinal_acceleration_lower_bound;

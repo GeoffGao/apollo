@@ -22,7 +22,7 @@ namespace apollo {
 namespace planning {
 
 PlanningStatus PlanningContext::planning_status_;
-PlanningContext::ScenarioInfo PlanningContext::scenario_info_;
+PlanningContext::SidePassInfo PlanningContext::side_pass_info_;
 
 PlanningContext::PlanningContext() {}
 
@@ -30,7 +30,7 @@ void PlanningContext::Init() {}
 
 void PlanningContext::Clear() {
   planning_status_.Clear();
-  scenario_info_ = {};
+  side_pass_info_ = {};
 }
 
 }  // namespace planning

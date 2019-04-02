@@ -16,14 +16,17 @@
 # limitations under the License.
 ###############################################################################
 
+import json
+import numpy as np
+from shapely.geometry import LineString, Point
+
+from modules.planning.proto import planning_pb2
 from common.statistical_analyzer import StatisticalAnalyzer
 from common.statistical_analyzer import PrintColors
 from common.distribution_analyzer import DistributionAnalyzer
 from common.error_code_analyzer import ErrorCodeAnalyzer
 from common.error_msg_analyzer import ErrorMsgAnalyzer
 from common.frechet_distance import frechet_distance
-from modules.planning.proto import planning_pb2
-from shapely.geometry import LineString, Point
 
 
 class PlannigAnalyzer:
@@ -40,9 +43,23 @@ class PlannigAnalyzer:
         self.frechet_distance_list = []
         self.is_simulation = is_simulation
         self.hard_break_list = []
+        self.total_cycle_num = 0
+        self.init_point_curvature = []
+        self.init_point_dcurvature = []
+        self.init_point_accel = []
+        self.init_point_decel = []
+
+        self.last_init_point_speed = None
+        self.last_init_point_t = None
+        self.breaking_2_3_cnt = 0
+        self.breaking_3_5_cnt = 0
+        self.breaking_5_cnt = 0
+        self.throttle_2_3_cnt = 0
+        self.throttle_3_5_cnt = 0
+        self.throttle_5_cnt = 0
 
     def put(self, adc_trajectory):
-        """put"""
+        self.total_cycle_num += 1
         if not self.is_simulation:
             latency = adc_trajectory.latency_stats.total_time_ms
             self.module_latency.append(latency)
@@ -62,30 +79,68 @@ class PlannigAnalyzer:
                         adc_trajectory.estop.reason, 0) + 1
 
         if self.is_simulation:
-            for point in adc_trajectory.trajectory_point:
-                if point.a <= -2.0:
-                    self.hard_break_list.append(point.a)
+            if adc_trajectory.debug.planning_data.HasField('init_point'):
+                self.init_point_curvature.append(
+                    abs(adc_trajectory.debug.planning_data.init_point.path_point.kappa))
+                self.init_point_dcurvature.append(
+                    abs(adc_trajectory.debug.planning_data.init_point.path_point.dkappa))
 
-        if self.last_adc_trajectory is not None:
-            current_path, last_path = self.find_common_path(adc_trajectory,
-                                                            self.last_adc_trajectory)
-            if len(current_path) == 0 or len(last_path) == 0:
-                dist = 0
-            else:
-                dist = frechet_distance(current_path, last_path)
-                self.frechet_distance_list.append(dist)
+                speed = adc_trajectory.debug.planning_data.init_point.v
+                t = adc_trajectory.header.timestamp_sec + \
+                    adc_trajectory.debug.planning_data.init_point.relative_time
+                if self.last_init_point_speed is not None:
+                    duration = t - self.last_init_point_t
+                    accel = (speed - self.last_init_point_speed) / duration
+                    if accel > 0:
+                        self.init_point_accel.append(accel)
+                    if accel < 0:
+                        self.init_point_decel.append(abs(accel))
+                        
+                    if -3 < accel <= -2:
+                        self.breaking_2_3_cnt += 1
+                    if -5 < accel <= -3:
+                        self.breaking_3_5_cnt += 1
+                    if accel <= -5:
+                        self.breaking_5_cnt += 1
+
+                    if 2 <= accel < 3:
+                        self.throttle_2_3_cnt += 1
+                    if 3 <= accel < 5:
+                        self.throttle_3_5_cnt += 1
+                    if 5 <= accel :
+                        self.throttle_5_cnt += 1
+
+                self.last_init_point_speed = speed
+                self.last_init_point_t = t
+
+        # TODO(yifei) temporarily disable frechet distance
+        #if self.last_adc_trajectory is not None and self.is_simulation:
+        #    current_path, last_path = self.find_common_path(adc_trajectory,
+        #                                                    self.last_adc_trajectory)
+        #    if len(current_path) == 0 or len(last_path) == 0:
+        #        dist = 0
+        #    else:
+        #        dist = frechet_distance(current_path, last_path)
+        #        if dist is not None:
+        #            self.frechet_distance_list.append(dist)
 
         self.last_adc_trajectory = adc_trajectory
 
     def find_common_path(self, current_adc_trajectory, last_adc_trajectory):
         current_path_points = current_adc_trajectory.trajectory_point
         last_path_points = last_adc_trajectory.trajectory_point
+
         current_path = []
         for point in current_path_points:
             current_path.append([point.path_point.x, point.path_point.y])
+            if point.path_point.s > 5.0:
+                break
         last_path = []
         for point in last_path_points:
             last_path.append([point.path_point.x, point.path_point.y])
+            if point.path_point.s > 5.0:
+                break
+
         if len(current_path) == 0 or len(last_path) == 0:
             return [], []
 
@@ -152,7 +207,87 @@ class PlannigAnalyzer:
 
     def print_simulation_results(self):
         results = {}
-        results['frechet_dist'] = sum(self.frechet_distance_list) /\
-            len(self.frechet_distance_list)
-        results['hard_brake_cycle_num'] = len(self.hard_break_list)
-        print str(results)
+
+        results['decel_2_3'] = self.breaking_2_3_cnt
+        results['decel_3_5'] = self.breaking_3_5_cnt
+        results['decel_5_'] = self.breaking_5_cnt
+
+        results['accel_2_3'] = self.throttle_2_3_cnt
+        results['accel_3_5'] = self.throttle_3_5_cnt
+        results['accel_5_'] = self.throttle_5_cnt
+
+        if len(self.init_point_curvature) > 0:
+            results['curvature_max'] = max(self.init_point_curvature, key=abs)
+            curvature_avg = np.average(np.absolute(self.init_point_curvature))
+            results['curvature_avg'] = curvature_avg
+        else:
+            results['curvature_max'] = None
+            results['curvature_avg'] = None
+
+        if len(self.init_point_dcurvature) > 0:
+            results['dcurvature_max'] = max(self.init_point_dcurvature, key=abs)
+            dcurvature_avg = np.average(np.absolute(self.init_point_dcurvature))
+            results['dcurvature_avg'] = dcurvature_avg
+        else:
+            results['dcurvature_max'] = None
+            results['dcurvature_avg'] = None
+
+        if len(self.init_point_accel) > 0:
+            results["accel_max"] = max(self.init_point_accel)
+            results["accel_avg"] = np.average(self.init_point_accel)
+        else:
+            results["accel_max"] = 0
+            results["accel_avg"] = 0
+        
+        if len(self.init_point_decel) > 0:
+            results["decel_max"] = max(self.init_point_decel)
+            results["decel_avg"] = np.average(self.init_point_decel)
+        else:
+            results["decel_max"] = 0
+            results["decel_avg"] = 0
+
+        print json.dumps(results)
+
+    def plot_path(self, plt, adc_trajectory):
+        path_coords = self.trim_path_by_distance(adc_trajectory, 5.0)
+        x = []
+        y = []
+        for point in path_coords:
+            x.append(point[0])
+            y.append(point[1])
+        plt.plot(x, y, 'r-', alpha=0.5)
+
+    def plot_refpath(self, plt, adc_trajectory):
+        for path in adc_trajectory.debug.planning_data.path:
+            if path.name != 'planning_reference_line':
+                continue
+            path_coords = self.trim_path_by_distance(adc_trajectory, 5.0)
+
+            ref_path_coord = []
+            for point in path.path_point:
+                ref_path_coord.append([point.x, point.y])
+            ref_path = LineString(ref_path_coord)
+
+            start_point = Point(path_coords[0])
+            dist = ref_path.project(start_point)
+            ref_path = self.cut(ref_path, dist)[1]
+
+            end_point = Point(path_coords[-1])
+            dist = ref_path.project(end_point)
+            ref_path = self.cut(ref_path, dist)[0]
+
+            x = []
+            y = []
+            for point in ref_path.coords:
+                x.append(point[0])
+                y.append(point[1])
+
+            plt.plot(x, y, 'b--', alpha=0.5)
+
+    def trim_path_by_distance(self, adc_trajectory, s):
+        path_coords = []
+        path_points = adc_trajectory.trajectory_point
+        for point in path_points:
+            if point.path_point.s <= s:
+                path_coords.append([point.path_point.x, point.path_point.y])
+        return path_coords

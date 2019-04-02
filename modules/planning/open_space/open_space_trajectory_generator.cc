@@ -66,7 +66,7 @@ apollo::common::Status OpenSpaceTrajectoryGenerator::Plan(
     const Eigen::MatrixXd& obstacles_A, const Eigen::MatrixXd& obstacles_b,
     const std::vector<std::vector<common::math::Vec2d>>&
         obstacles_vertices_vec) {
-  if (!vehicle_state.has_x() || XYbounds.size() == 0 || end_pose.size() == 0 ||
+  if (!vehicle_state.has_x() || XYbounds.empty() || end_pose.empty() ||
       obstacles_edges_num.cols() == 0 || obstacles_A.cols() == 0 ||
       obstacles_b.cols() == 0) {
     return Status(ErrorCode::PLANNING_ERROR, "Generator input data not ready");
@@ -160,8 +160,8 @@ apollo::common::Status OpenSpaceTrajectoryGenerator::Plan(
   // Step 8 : Formulate distance approach problem
   // solution from distance approach
   ADEBUG << "Start forming state warm start problem with configs setting : "
-    << planner_open_space_config_.\
-      dual_variable_warm_start_config().ShortDebugString();
+         << planner_open_space_config_.dual_variable_warm_start_config()
+                .ShortDebugString();
 
   // result for distance approach problem
   Eigen::MatrixXd l_warm_up;
@@ -212,12 +212,13 @@ apollo::common::Status OpenSpaceTrajectoryGenerator::Plan(
   // record debug info
   if (FLAGS_enable_record_debug) {
     open_space_debug_.Clear();
-    RecordDebugInfo(xWS, uWS, l_warm_up, n_warm_up, dual_l_result_ds,
-                    dual_n_result_ds, state_result_ds, control_result_ds,
-                    time_result_ds, XYbounds_, obstacles_vertices_vec);
+    RecordDebugInfo(translate_origin, rotate_angle, end_pose, xWS, uWS,
+                    l_warm_up, n_warm_up, dual_l_result_ds, dual_n_result_ds,
+                    state_result_ds, control_result_ds, time_result_ds,
+                    XYbounds_, obstacles_vertices_vec);
   }
   // rescale the states to the world frame
-  for (size_t i = 0; i < horizon_ + 1; i++) {
+  for (size_t i = 0; i < horizon_ + 1; ++i) {
     double tmp_x = state_result_ds(0, i);
     state_result_ds(0, i) = state_result_ds(0, i) * std::cos(rotate_angle) -
                             state_result_ds(1, i) * std::sin(rotate_angle);
@@ -254,19 +255,34 @@ void OpenSpaceTrajectoryGenerator::GetStitchingTrajectory(
 }
 
 void OpenSpaceTrajectoryGenerator::RecordDebugInfo(
-    const Eigen::MatrixXd& xWS, const Eigen::MatrixXd& uWS,
-    const Eigen::MatrixXd& l_warm_up, const Eigen::MatrixXd& n_warm_up,
-    const Eigen::MatrixXd& dual_l_result_ds,
+    const Vec2d& translate_origin, const double& rotate_angle,
+    const std::vector<double>& end_pose, const Eigen::MatrixXd& xWS,
+    const Eigen::MatrixXd& uWS, const Eigen::MatrixXd& l_warm_up,
+    const Eigen::MatrixXd& n_warm_up, const Eigen::MatrixXd& dual_l_result_ds,
     const Eigen::MatrixXd& dual_n_result_ds,
     const Eigen::MatrixXd& state_result_ds,
     const Eigen::MatrixXd& control_result_ds,
     const Eigen::MatrixXd& time_result_ds, const std::vector<double>& XYbounds,
     const std::vector<std::vector<common::math::Vec2d>>&
         obstacles_vertices_vec) {
+  // load translation origin and heading angle
+  auto* roi_shift_point =
+      open_space_debug_.mutable_roi_shift_point()->mutable_path_point();
+  roi_shift_point->set_x(translate_origin.x());
+  roi_shift_point->set_y(translate_origin.y());
+  roi_shift_point->set_theta(rotate_angle);
+
+  // load end_pose into debug
+  auto* end_point = open_space_debug_.mutable_end_point();
+  end_point->mutable_path_point()->set_x(end_pose[0]);
+  end_point->mutable_path_point()->set_y(end_pose[1]);
+  end_point->mutable_path_point()->set_theta(end_pose[2]);
+  end_point->set_v(end_pose[3]);
+
   // load warm start trajectory
   auto* warm_start_trajectory =
       open_space_debug_.mutable_warm_start_trajectory();
-  for (size_t i = 0; i < horizon_; i++) {
+  for (size_t i = 0; i < horizon_; ++i) {
     auto* warm_start_point = warm_start_trajectory->add_vehicle_motion_point();
     warm_start_point->mutable_trajectory_point()->mutable_path_point()->set_x(
         xWS(0, i));
@@ -290,13 +306,13 @@ void OpenSpaceTrajectoryGenerator::RecordDebugInfo(
 
   // load warm start dual variables
   size_t l_warm_up_cols = l_warm_up.rows();
-  for (size_t i = 0; i < horizon_; i++) {
+  for (size_t i = 0; i < horizon_; ++i) {
     for (size_t j = 0; j < l_warm_up_cols; j++) {
       open_space_debug_.add_warm_start_dual_lambda(l_warm_up(j, i));
     }
   }
   size_t n_warm_up_cols = n_warm_up.rows();
-  for (size_t i = 0; i < horizon_; i++) {
+  for (size_t i = 0; i < horizon_; ++i) {
     for (size_t j = 0; j < n_warm_up_cols; j++) {
       open_space_debug_.add_warm_start_dual_miu(n_warm_up(j, i));
     }
@@ -304,13 +320,13 @@ void OpenSpaceTrajectoryGenerator::RecordDebugInfo(
 
   // load optimized dual variables
   size_t dual_l_result_ds_cols = dual_l_result_ds.rows();
-  for (size_t i = 0; i < horizon_; i++) {
+  for (size_t i = 0; i < horizon_; ++i) {
     for (size_t j = 0; j < dual_l_result_ds_cols; j++) {
       open_space_debug_.add_optimized_dual_lambda(dual_l_result_ds(j, i));
     }
   }
   size_t dual_n_result_ds_cols = dual_n_result_ds.rows();
-  for (size_t i = 0; i < horizon_; i++) {
+  for (size_t i = 0; i < horizon_; ++i) {
     for (size_t j = 0; j < dual_n_result_ds_cols; j++) {
       open_space_debug_.add_optimized_dual_miu(dual_n_result_ds(j, i));
     }
@@ -320,7 +336,7 @@ void OpenSpaceTrajectoryGenerator::RecordDebugInfo(
 
   // load smoothed trajectory
   auto* smoothed_trajectory = open_space_debug_.mutable_smoothed_trajectory();
-  for (size_t i = 0; i < horizon_; i++) {
+  for (size_t i = 0; i < horizon_; ++i) {
     auto* smoothed_point = smoothed_trajectory->add_vehicle_motion_point();
     smoothed_point->mutable_trajectory_point()->mutable_path_point()->set_x(
         state_result_ds(0, i));
@@ -356,7 +372,7 @@ void OpenSpaceTrajectoryGenerator::RecordDebugInfo(
   for (const auto& obstacle_vertices : obstacles_vertices_vec) {
     auto* obstacle_ptr = open_space_debug_.add_obstacles();
     size_t vertices_size = obstacle_vertices.size();
-    for (size_t i = 0; i < vertices_size; i++) {
+    for (size_t i = 0; i < vertices_size; ++i) {
       obstacle_ptr->add_vertices_x_coords(obstacle_vertices[i].x());
       obstacle_ptr->add_vertices_y_coords(obstacle_vertices[i].y());
     }
@@ -369,7 +385,7 @@ void OpenSpaceTrajectoryGenerator::LoadTrajectory(
     const Eigen::MatrixXd& time_result_ds) {
   trajectory_to_end_.Clear();
   double relative_time = 0.0;
-  for (size_t i = 0; i < horizon_ + 1; i++) {
+  for (size_t i = 0; i < horizon_ + 1; ++i) {
     auto* point = trajectory_to_end_.add_trajectory_point();
     point->mutable_path_point()->set_x(state_result_ds(0, i));
     point->mutable_path_point()->set_y(state_result_ds(1, i));

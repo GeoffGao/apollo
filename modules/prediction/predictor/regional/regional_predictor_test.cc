@@ -16,6 +16,7 @@
 
 #include "modules/prediction/predictor/regional/regional_predictor.h"
 
+#include "cyber/common/file.h"
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/common/prediction_gflags.h"
 #include "modules/prediction/container/obstacles/obstacles_container.h"
@@ -28,7 +29,7 @@ class RegionalPredictorTest : public KMLMapBasedTest {
   virtual void SetUp() {
     std::string file =
         "modules/prediction/testdata/multiple_perception_pedestrians.pb.txt";
-    apollo::common::util::GetProtoFromFile(file, &perception_obstacles_);
+    cyber::common::GetProtoFromFile(file, &perception_obstacles_);
     FLAGS_p_var = 0.1;
     FLAGS_q_var = 0.01;
     FLAGS_r_var = 0.25;
@@ -47,7 +48,7 @@ TEST_F(RegionalPredictorTest, Predict) {
   ObstaclesContainer container;
   container.Insert(perception_obstacles_);
   Obstacle* obstacle_ptr = container.GetObstacle(101);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
   RegionalPredictor predictor;
   predictor.Predict(obstacle_ptr);
   const std::vector<Trajectory>& trajectories = predictor.trajectories();
@@ -63,7 +64,7 @@ TEST_F(RegionalPredictorTest, MovingPedestrian) {
   ObstaclesContainer container;
   container.Insert(perception_obstacles_);
   Obstacle* obstacle_ptr = container.GetObstacle(101);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
   RegionalPredictor predictor;
   predictor.GenerateMovingTrajectory(obstacle_ptr, 1.0);
   const std::vector<Trajectory>& trajectories = predictor.trajectories();
@@ -95,7 +96,7 @@ TEST_F(RegionalPredictorTest, StationaryPedestrian) {
   ObstaclesContainer container;
   container.Insert(perception_obstacles_);
   Obstacle* obstacle_ptr = container.GetObstacle(102);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
   RegionalPredictor predictor;
   predictor.GenerateStillTrajectory(obstacle_ptr, 1.0);
   const std::vector<Trajectory>& trajectories = predictor.trajectories();

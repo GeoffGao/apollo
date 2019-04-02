@@ -78,8 +78,9 @@ void Processor::SetSchedPolicy(std::string spolicy, int sched_priority) {
 
 void Processor::Run() {
   tid_.store(static_cast<int>(syscall(SYS_gettid)));
+  AINFO << "processor_tid: " << tid_;
 
-  while (likely(running_)) {
+  while (likely(running_.load())) {
     if (likely(context_ != nullptr)) {
       auto croutine = context_->NextRoutine();
       if (croutine) {

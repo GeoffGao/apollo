@@ -75,6 +75,7 @@ export default [
         data: {
             positionLocalization: 'Localization',
             positionGps: 'GPS',
+            positionShadow: 'Shadow',
         },
         supportInOfflineView: true,
     }, {
@@ -92,6 +93,7 @@ export default [
             mapStopSign: 'Stop Sign',
             mapSpeedBump: 'Speed Bump',
             mapParkingSpace: 'Parking Space',
+            mapLaneId: 'Lane Id'
         },
         supportInOfflineView: false,
     },

@@ -23,8 +23,8 @@
 #include <vector>
 
 #include "cyber/cyber.h"
-#include "cyber/io/session.h"
 #include "cyber/init.h"
+#include "cyber/io/session.h"
 #include "cyber/scheduler/scheduler_factory.h"
 
 using apollo::cyber::io::Session;
@@ -103,4 +103,5 @@ int main(int argc, char* argv[]) {
       "echo_client");
 
   apollo::cyber::WaitForShutdown();
+  return 0;
 }

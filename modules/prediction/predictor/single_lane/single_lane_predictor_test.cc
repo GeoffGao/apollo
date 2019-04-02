@@ -16,6 +16,7 @@
 
 #include "modules/prediction/predictor/single_lane/single_lane_predictor.h"
 
+#include "cyber/common/file.h"
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/container/obstacles/obstacles_container.h"
 #include "modules/prediction/evaluator/vehicle/cost_evaluator.h"
@@ -26,9 +27,9 @@ namespace prediction {
 class SingleLanePredictorTest : public KMLMapBasedTest {
  public:
   virtual void SetUp() {
-    std::string file =
+    const std::string file =
         "modules/prediction/testdata/single_perception_vehicle_onlane.pb.txt";
-    apollo::common::util::GetProtoFromFile(file, &perception_obstacles_);
+    cyber::common::GetProtoFromFile(file, &perception_obstacles_);
   }
 
  protected:
@@ -46,7 +47,7 @@ TEST_F(SingleLanePredictorTest, OnLaneCase) {
   container.Insert(perception_obstacles_);
   container.BuildLaneGraph();
   Obstacle* obstacle_ptr = container.GetObstacle(1);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
   cost_evaluator.Evaluate(obstacle_ptr);
   SingleLanePredictor predictor;
   predictor.Predict(obstacle_ptr);

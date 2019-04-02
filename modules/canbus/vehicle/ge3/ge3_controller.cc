@@ -572,6 +572,17 @@ void Ge3Controller::Steer(double angle) {
   pc_eps_204_->set_pc_steerangreq(real_angle)->set_pc_steerspdreq(500);
 }
 
+// drive with acceleration/deceleration
+// acc:-7.0 ~ 5.0, unit:m/s^2
+void Ge3Controller::Acceleration(double acc) {
+  if (!(driving_mode() == Chassis::COMPLETE_AUTO_DRIVE ||
+        driving_mode() == Chassis::AUTO_SPEED_ONLY)) {
+    AINFO << "The current drive mode does not need to set acceleration.";
+    return;
+  }
+  // None
+}
+
 // steering with new angle speed
 // angle:-99.99~0.00~99.99, unit:, left:-, right:+
 // angle_spd:0.00~99.99, unit:deg/s
@@ -717,7 +728,7 @@ void Ge3Controller::SecurityDogThreadFunc() {
     // 1. horizontal control check
     if ((mode == Chassis::COMPLETE_AUTO_DRIVE ||
          mode == Chassis::AUTO_STEER_ONLY) &&
-        CheckResponse(CHECK_RESPONSE_STEER_UNIT_FLAG, false) == false) {
+        !CheckResponse(CHECK_RESPONSE_STEER_UNIT_FLAG, false)) {
       ++horizontal_ctrl_fail;
       if (horizontal_ctrl_fail >= kMaxFailAttempt) {
         emergency_mode = true;
@@ -730,7 +741,7 @@ void Ge3Controller::SecurityDogThreadFunc() {
     // 2. vertical control check
     if ((mode == Chassis::COMPLETE_AUTO_DRIVE ||
          mode == Chassis::AUTO_SPEED_ONLY) &&
-        CheckResponse(CHECK_RESPONSE_SPEED_UNIT_FLAG, false) == false) {
+        !CheckResponse(CHECK_RESPONSE_SPEED_UNIT_FLAG, false)) {
       ++vertical_ctrl_fail;
       if (vertical_ctrl_fail >= kMaxFailAttempt) {
         emergency_mode = true;

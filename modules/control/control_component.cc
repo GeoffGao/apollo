@@ -15,10 +15,10 @@
  *****************************************************************************/
 #include "modules/control/control_component.h"
 
+#include "cyber/common/file.h"
 #include "cyber/common/log.h"
 #include "modules/common/adapters/adapter_gflags.h"
 #include "modules/common/time/time.h"
-#include "modules/common/util/file.h"
 #include "modules/common/vehicle_state/vehicle_state_provider.h"
 #include "modules/control/common/control_gflags.h"
 
@@ -41,8 +41,8 @@ bool ControlComponent::Init() {
 
   AINFO << "Control init, starting ...";
 
-  CHECK(apollo::common::util::GetProtoFromFile(FLAGS_control_conf_file,
-                                               &control_conf_))
+  CHECK(
+      cyber::common::GetProtoFromFile(FLAGS_control_conf_file, &control_conf_))
       << "Unable to load control conf file: " + FLAGS_control_conf_file;
 
   AINFO << "Conf file: " << FLAGS_control_conf_file << " is loaded.";
@@ -198,16 +198,18 @@ Status ControlComponent::ProduceControlCommand(
                : local_view_.trajectory.estop().is_estop();
 
   if (local_view_.trajectory.estop().is_estop()) {
-    estop_reason_ = "estop from planning";
+    estop_ = true;
+    estop_reason_ = "estop from planning : ";
+    estop_reason_ += local_view_.trajectory.estop().reason();
   }
 
   if (local_view_.trajectory.trajectory_point_size() == 0) {
     AWARN_EVERY(100) << "planning has no trajectory point. ";
     estop_ = true;
-    estop_reason_ = "estop for empty planning trajectory";
+    estop_reason_ = "estop for empty planning trajectory, planning headers: " +
+                    local_view_.trajectory.header().ShortDebugString();
   }
 
-  // if planning set estop, then no control process triggered
   if (!estop_) {
     if (local_view_.chassis.driving_mode() == Chassis::COMPLETE_MANUAL) {
       controller_agent_.Reset();
@@ -239,7 +241,7 @@ Status ControlComponent::ProduceControlCommand(
       status = status_compute;
     }
   }
-
+  // if planning set estop, then no control process triggered
   if (estop_) {
     AWARN_EVERY(100) << "Estop triggered! No control core method executed!";
     // set Estop command
@@ -313,7 +315,7 @@ bool ControlComponent::Proc() {
   const double time_diff_ms = (end_timestamp - start_timestamp) * 1000;
   control_command.mutable_latency_stats()->set_total_time_ms(time_diff_ms);
   control_command.mutable_latency_stats()->set_total_time_exceeded(
-      time_diff_ms < control_conf_.control_period());
+      time_diff_ms > control_conf_.control_period());
   ADEBUG << "control cycle time is: " << time_diff_ms << " ms.";
   status.Save(control_command.mutable_header()->mutable_status());
 

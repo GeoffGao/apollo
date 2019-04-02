@@ -24,13 +24,14 @@ DECLARE_string(prediction_conf_file);
 DECLARE_string(prediction_adapter_config_filename);
 DECLARE_string(prediction_data_dir);
 DECLARE_string(offline_feature_proto_file_name);
+DECLARE_string(output_filename);
 DECLARE_string(extract_feature_type);
 
 DECLARE_bool(prediction_test_mode);
 DECLARE_double(prediction_test_duration);
 
-DECLARE_bool(prediction_offline_mode);
 DECLARE_string(prediction_offline_bags);
+DECLARE_int32(prediction_offline_mode);
 
 // Bag replay timestamp gap
 DECLARE_double(replay_timestamp_gap);

@@ -16,6 +16,7 @@
 
 #include "modules/prediction/predictor/sequence/sequence_predictor.h"
 
+#include "cyber/common/file.h"
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/container/obstacles/obstacles_container.h"
 #include "modules/prediction/evaluator/vehicle/mlp_evaluator.h"
@@ -26,9 +27,9 @@ namespace prediction {
 class SequencePredictorTest : public KMLMapBasedTest {
  public:
   virtual void SetUp() {
-    std::string file =
+    const std::string file =
         "modules/prediction/testdata/single_perception_vehicle_onlane.pb.txt";
-    apollo::common::util::GetProtoFromFile(file, &perception_obstacles_);
+    cyber::common::GetProtoFromFile(file, &perception_obstacles_);
   }
 
  protected:
@@ -46,15 +47,15 @@ TEST_F(SequencePredictorTest, General) {
   container.Insert(perception_obstacles_);
   container.BuildLaneGraph();
   Obstacle* obstacle_ptr = container.GetObstacle(1);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
   mlp_evaluator.Evaluate(obstacle_ptr);
   SequencePredictor predictor;
   predictor.Predict(obstacle_ptr);
   EXPECT_EQ(predictor.NumOfTrajectories(), 0);
   LaneSequence* lane_seq = obstacle_ptr->mutable_latest_feature()
-                                       ->mutable_lane()
-                                       ->mutable_lane_graph()
-                                       ->mutable_lane_sequence(0);
+                               ->mutable_lane()
+                               ->mutable_lane_graph()
+                               ->mutable_lane_sequence(0);
   std::string sequence_str = predictor.ToString(*lane_seq);
   EXPECT_GT(sequence_str.size(), 0);
   SequencePredictor::LaneChangeType lane_change_type =

@@ -20,12 +20,33 @@ cc_library(
     name = "reeds_shepp_path",
     srcs = ["reeds_shepp_path.cc"],
     hdrs = ["reeds_shepp_path.h"],
-    copts = ["-DMODULE_NAME=\\\"planning\\\""],
+    copts = [
+        "-DMODULE_NAME=\\\"planning\\\"",
+        "-fopenmp",
+    ],
     deps = [
         "//cyber/common:log",
         "//modules/common/configs:vehicle_config_helper",
         "//modules/common/math",
+        "//modules/planning/common:planning_gflags",
         "//modules/planning/open_space/coarse_trajectory_generator:node3d",
+        "//modules/planning/proto:planner_open_space_config_proto",
+        "@adolc",
+    ],
+)
+
+cc_library(
+    name = "grid_search",
+    srcs = [
+        "grid_search.cc",
+    ],
+    hdrs = [
+        "grid_search.h",
+    ],
+    copts = ["-DMODULE_NAME=\\\"planning\\\""],
+    deps = [
+        "//cyber/common:log",
+        "//modules/common/math",
         "//modules/planning/proto:planner_open_space_config_proto",
     ],
 )
@@ -34,6 +55,7 @@ cc_library(
     name = "open_space_utils",
     copts = ["-DMODULE_NAME=\\\"planning\\\""],
     deps = [
+        "//modules/planning/open_space/coarse_trajectory_generator:grid_search",
         "//modules/planning/open_space/coarse_trajectory_generator:node3d",
         "//modules/planning/open_space/coarse_trajectory_generator:reeds_shepp_path",
     ],

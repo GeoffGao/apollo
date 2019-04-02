@@ -23,8 +23,8 @@
 
 #include "gtest/gtest.h"
 
+#include "cyber/common/file.h"
 #include "cyber/common/log.h"
-#include "modules/common/util/file.h"
 #include "modules/planning/common/planning_gflags.h"
 
 namespace apollo {
@@ -42,19 +42,19 @@ class SidePassScenarioTest : public ::testing::Test {
 
 TEST_F(SidePassScenarioTest, VerifyConf) {
   FLAGS_scenario_side_pass_config_file =
-      "/apollo/modules/planning/conf/scenario_side_pass_config.pb.txt";
+      "/apollo/modules/planning/conf/scenario/side_pass_config.pb.txt";
 
   ScenarioConfig config;
-  EXPECT_TRUE(apollo::common::util::GetProtoFromFile(
+  EXPECT_TRUE(apollo::cyber::common::GetProtoFromFile(
       FLAGS_scenario_side_pass_config_file, &config));
 }
 
 TEST_F(SidePassScenarioTest, Init) {
   FLAGS_scenario_side_pass_config_file =
-      "/apollo/modules/planning/testdata/conf/scenario_side_pass_config.pb.txt";
+      "/apollo/modules/planning/testdata/conf/scenario/side_pass_config.pb.txt";
 
   ScenarioConfig config;
-  EXPECT_TRUE(apollo::common::util::GetProtoFromFile(
+  EXPECT_TRUE(apollo::cyber::common::GetProtoFromFile(
       FLAGS_scenario_side_pass_config_file, &config));
   ScenarioContext context;
   scenario_.reset(new SidePassScenario(config, &context));

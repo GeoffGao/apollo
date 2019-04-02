@@ -61,16 +61,6 @@ class MoveSequencePredictor : public SequencePredictor {
       const double total_time, const double period,
       std::vector<apollo::common::TrajectoryPoint>* points);
 
-  bool GetLongitudinalPolynomial(const Obstacle& obstacle,
-                                 const LaneSequence& lane_sequence,
-                                 const std::pair<double, double>& lon_end_state,
-                                 std::array<double, 5>* coefficients);
-
-  bool GetLateralPolynomial(const Obstacle& obstacle,
-                            const LaneSequence& lane_sequence,
-                            const double time_to_end_state,
-                            std::array<double, 6>* coefficients);
-
   std::pair<double, double> ComputeLonEndState(
       const std::array<double, 3>& init_s, const LaneSequence& lane_sequence);
 
@@ -79,8 +69,7 @@ class MoveSequencePredictor : public SequencePredictor {
 
   std::vector<double> GenerateCandidateTimes();
 
-  double CostFunction(const double max_lat_acc,
-                      const double time_to_end_state,
+  double CostFunction(const double max_lat_acc, const double time_to_end_state,
                       const double time_to_lane_edge,
                       const double bell_curve_mu);
 };

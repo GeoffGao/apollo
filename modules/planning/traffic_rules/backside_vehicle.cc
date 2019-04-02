@@ -35,8 +35,9 @@ void BacksideVehicle::MakeLaneKeepingObstacleDecision(
   const double adc_length_s =
       adc_sl_boundary.end_s() - adc_sl_boundary.start_s();
   for (const auto* obstacle : path_decision->obstacles().Items()) {
-    if (obstacle->PerceptionSLBoundary().end_s() >=
-        adc_sl_boundary.end_s()) {  // don't ignore such vehicles.
+    if (obstacle->PerceptionSLBoundary().end_s() >= adc_sl_boundary.end_s() ||
+        obstacle->IsCautionLevelObstacle()) {
+      // don't ignore such vehicles.
       continue;
     }
 

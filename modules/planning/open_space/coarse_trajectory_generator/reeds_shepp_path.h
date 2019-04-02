@@ -20,8 +20,11 @@
 
 #pragma once
 
+#include <omp.h>
+
 #include <limits>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -31,6 +34,8 @@
 #include "modules/common/math/math_utils.h"
 #include "modules/planning/open_space/coarse_trajectory_generator/node3d.h"
 #include "modules/planning/proto/planner_open_space_config.pb.h"
+
+#include "modules/planning/common/planning_gflags.h"
 
 namespace apollo {
 namespace planning {
@@ -64,7 +69,7 @@ class ReedShepp {
                    const std::shared_ptr<Node3d> end_node,
                    std::shared_ptr<ReedSheppPath> optimal_path);
 
- private:
+ protected:
   // Generate all possible combination of movement primitives by Reed Shepp and
   // interpolate them
   bool GenerateRSPs(const std::shared_ptr<Node3d> start_node,
@@ -74,6 +79,10 @@ class ReedShepp {
   bool GenerateRSP(const std::shared_ptr<Node3d> start_node,
                    const std::shared_ptr<Node3d> end_node,
                    std::vector<ReedSheppPath>* all_possible_paths);
+  // Set the general profile of the movement primitives, parallel implementation
+  bool GenerateRSPPar(const std::shared_ptr<Node3d> start_node,
+                      const std::shared_ptr<Node3d> end_node,
+                      std::vector<ReedSheppPath>* all_possible_paths);
   // Set local exact configurations profile of each movement primitive
   bool GenerateLocalConfigurations(const std::shared_ptr<Node3d> start_node,
                                    const std::shared_ptr<Node3d> end_node,
@@ -86,6 +95,11 @@ class ReedShepp {
   // motion primitives combination setup function
   bool SetRSP(const int& size, const double* lengths, const char* types,
               std::vector<ReedSheppPath>* all_possible_paths);
+  // setRSP parallel version
+  bool SetRSPPar(const int& size, const double* lengths,
+                 const std::string& types,
+                 std::vector<ReedSheppPath>* all_possible_paths,
+                 const int& idx);
   // Six different combination of motion primitive in Reed Shepp path used in
   // GenerateRSP()
   bool SCS(const double& x, const double& y, const double& phi,
@@ -123,7 +137,7 @@ class ReedShepp {
                                            const double& xi, const double& eta,
                                            const double& phi);
 
- private:
+ protected:
   common::VehicleParam vehicle_param_;
   PlannerOpenSpaceConfig planner_open_space_config_;
   double max_kappa_;

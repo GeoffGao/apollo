@@ -14,6 +14,7 @@ cc_library(
     deps = [
         "//cyber/common:file",
         "//modules/common/adapters:adapter_gflags",
+        "//modules/prediction/common:message_process",
         "//modules/prediction/evaluator:evaluator_manager",
         "//modules/prediction/predictor:predictor_manager",
         "//modules/prediction/proto:offline_features_proto",
@@ -56,15 +57,6 @@ filegroup(
 filegroup(
     name = "prediction_testdata",
     srcs = glob(["testdata/**"]),
-)
-
-cc_binary(
-    name = "feature_proto_file_to_model_features",
-    srcs = ["feature_proto_file_to_model_features.cc"],
-    deps = [
-        "//modules/common/adapters/proto:adapter_config_proto",
-        ":prediction_component_lib",
-    ],
 )
 
 cpplint()

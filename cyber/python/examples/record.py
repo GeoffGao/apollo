@@ -24,26 +24,27 @@ from cyber_py import cyber
 from cyber_py import record
 from google.protobuf.descriptor_pb2 import FileDescriptorProto
 from modules.common.util.testdata.simple_pb2 import SimpleMessage
+from cyber.proto.unit_test_pb2 import Chatter
 
-TEST_RECORD_FILE = "test02.record.00000"
-CHAN_1 = "channel/chatter"
-CHAN_2 = "/test2"
+TEST_RECORD_FILE = "test02.record"
 MSG_TYPE = "apollo.common.util.test.SimpleMessage"
-STR_10B = "1234567890"
-TEST_FILE = "test.record"
+MSG_TYPE_CHATTER = "apollo.cyber.proto.Chatter"
+
 
 def test_record_writer(writer_path):
     """
-    record writer.
+    Record writer.
     """
     fwriter = record.RecordWriter()
-    if not fwriter.open(writer_path):
-        print "writer open failed!"
-        return
-    print "+++ begin to writer..."
-    fwriter.write_channel(CHAN_1, MSG_TYPE, STR_10B)
-    fwriter.write_message(CHAN_1, STR_10B, 1000)
+    fwriter.set_size_fileseg(0)
+    fwriter.set_intervaltime_fileseg(0)
 
+    if not fwriter.open(writer_path):
+        print('Failed to open record writer!')
+        return
+    print('+++ Begin to writer +++')
+
+    # Writer 2 SimpleMessage
     msg = SimpleMessage()
     msg.text = "AAAAAA"
 
@@ -52,35 +53,72 @@ def test_record_writer(writer_path):
     file_desc.CopyToProto(proto)
     proto.name = file_desc.name
     desc_str = proto.SerializeToString()
+    print msg.DESCRIPTOR.full_name
+    fwriter.write_channel(
+        'simplemsg_channel', msg.DESCRIPTOR.full_name, desc_str)
+    fwriter.write_message('simplemsg_channel', msg, 990, False)
+    fwriter.write_message('simplemsg_channel', msg.SerializeToString(), 991)
 
+    # Writer 2 Chatter
+    msg = Chatter()
+    msg.timestamp = 99999
+    msg.lidar_timestamp = 100
+    msg.seq = 1
+
+    file_desc = msg.DESCRIPTOR.file
+    proto = FileDescriptorProto()
+    file_desc.CopyToProto(proto)
+    proto.name = file_desc.name
+    desc_str = proto.SerializeToString()
+    print msg.DESCRIPTOR.full_name
     fwriter.write_channel('chatter_a', msg.DESCRIPTOR.full_name, desc_str)
-    fwriter.write_message('chatter_a', msg, 998, False)
-    fwriter.write_message("chatter_a", msg.SerializeToString(), 999)
+    fwriter.write_message('chatter_a', msg, 992, False)
+    msg.seq = 2
+    fwriter.write_message("chatter_a", msg.SerializeToString(), 993)
 
     fwriter.close()
 
+
 def test_record_reader(reader_path):
     """
-    record reader.
+    Record reader.
     """
     freader = record.RecordReader(reader_path)
     time.sleep(1)
-    print "+"*80
-    print "+++begin to read..."
-    count = 1
-    for channelname, msg, datatype, timestamp in freader.read_messages():
-        print "="*80
-        print "read [%d] msg" % count
-        print "chnanel_name -> %s" % channelname
-        print "msg -> %s" % msg
-        print "msgtime -> %d" % timestamp
-        print "msgnum -> %d" % freader.get_messagenumber(channelname)
-        print "msgtype -> %s" % datatype
+    print('+' * 80)
+    print('+++ Begin to read +++')
+    count = 0
+    for channel_name, msg, datatype, timestamp in freader.read_messages():
+        cout += 1
+        print('=' * 80)
+        print('read [%d] messages' % count)
+        print('chnanel_name -> %s' % channel_name)
+        print('msgtime -> %d' % timestamp)
+        print('msgnum -> %d' % freader.get_messagenumber(channel_name))
+        print('msgtype -> %s' % datatype)
         # print "pbdesc -> %s" % freader.get_protodesc(channelname)
-        count = count + 1
+        print('message is -> %s' % msg)
+        print('***After parse(if needed),the message is ->')
+        if datatype == MSG_TYPE:
+            msg_new = SimpleMessage()
+            msg_new.ParseFromString(msg)
+            print(msg_new)
+        if datatype == MSG_TYPE_CHATTER:
+            msg_new = Chatter()
+            msg_new.ParseFromString(msg)
+            print(msg_new)
 
 if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print('Usage: %s record_file' % sys.argv[0])
+        sys.exit(0)
+
     cyber.init()
+    print('Begin to read record file: %s' % sys.argv[1])
+    test_record_reader(sys.argv[1])
+    cyber.shutdown()
+    sys.exit(0)
+
     test_record_writer(TEST_RECORD_FILE)
     test_record_reader(TEST_RECORD_FILE)
     cyber.shutdown()

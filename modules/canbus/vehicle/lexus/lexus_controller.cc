@@ -356,7 +356,7 @@ ErrorCode LexusController::EnableSteeringOnlyMode() {
   shift_cmd_128_->set_enable(false);
 
   can_sender_->Update();
-  if (CheckResponse(CHECK_RESPONSE_STEER_UNIT_FLAG, true) == false) {
+  if (!CheckResponse(CHECK_RESPONSE_STEER_UNIT_FLAG, true)) {
     AERROR << "Failed to switch to AUTO_STEER_ONLY mode.";
     Emergency();
     set_chassis_error_code(Chassis::CHASSIS_ERROR);
@@ -382,7 +382,7 @@ ErrorCode LexusController::EnableSpeedOnlyMode() {
   shift_cmd_128_->set_enable(false);
 
   can_sender_->Update();
-  if (CheckResponse(CHECK_RESPONSE_SPEED_UNIT_FLAG, true) == false) {
+  if (!CheckResponse(CHECK_RESPONSE_SPEED_UNIT_FLAG, true)) {
     AERROR << "Failed to switch to AUTO_STEER_ONLY mode.";
     Emergency();
     set_chassis_error_code(Chassis::CHASSIS_ERROR);
@@ -463,6 +463,17 @@ void LexusController::Throttle(double pedal) {
     return;
   }
   accel_cmd_100_->set_accel_cmd(pedal);
+}
+
+// drive with acceleration/deceleration
+// acc:-7.0 ~ 5.0, unit:m/s^2
+void LexusController::Acceleration(double acc) {
+  if (!(driving_mode() == Chassis::COMPLETE_AUTO_DRIVE ||
+        driving_mode() == Chassis::AUTO_SPEED_ONLY)) {
+    AINFO << "The current drive mode does not need to set acceleration.";
+    return;
+  }
+  // None
 }
 
 // lexus default, -470 ~ 470, left:+, right:-
@@ -576,7 +587,7 @@ void LexusController::SecurityDogThreadFunc() {
     // 1. horizontal control check
     if ((mode == Chassis::COMPLETE_AUTO_DRIVE ||
          mode == Chassis::AUTO_STEER_ONLY) &&
-        CheckResponse(CHECK_RESPONSE_STEER_UNIT_FLAG, false) == false) {
+        !CheckResponse(CHECK_RESPONSE_STEER_UNIT_FLAG, false)) {
       ++horizontal_ctrl_fail;
       if (horizontal_ctrl_fail >= kMaxFailAttempt) {
         emergency_mode = true;
@@ -589,7 +600,7 @@ void LexusController::SecurityDogThreadFunc() {
     // 2. vertical control check
     if ((mode == Chassis::COMPLETE_AUTO_DRIVE ||
          mode == Chassis::AUTO_SPEED_ONLY) &&
-        CheckResponse(CHECK_RESPONSE_SPEED_UNIT_FLAG, false) == false) {
+        !CheckResponse(CHECK_RESPONSE_SPEED_UNIT_FLAG, false)) {
       ++vertical_ctrl_fail;
       if (vertical_ctrl_fail >= kMaxFailAttempt) {
         emergency_mode = true;

@@ -25,11 +25,13 @@
 #include "modules/common/configs/vehicle_config_helper.h"
 #include "modules/map/hdmap/hdmap_util.h"
 #include "modules/planning/common/planning_context.h"
+#include "modules/planning/scenarios/util/util.h"
 
 namespace apollo {
 namespace planning {
 
-using apollo::common::Status;
+using common::Status;
+using hdmap::PathOverlap;
 
 uint32_t DeciderCreep::creep_clear_counter_ = 0;
 
@@ -43,9 +45,39 @@ Status DeciderCreep::Process(Frame* frame,
   CHECK_NOTNULL(frame);
   CHECK_NOTNULL(reference_line_info);
 
-  const double stop_sign_overlap_end_s =
-      PlanningContext::GetScenarioInfo()->next_stop_sign_overlap.end_s;
-  BuildStopDecision(stop_sign_overlap_end_s, frame, reference_line_info);
+  double stop_line_s = 0.0;
+  const std::string stop_sign_overlap_id = PlanningContext::Planningstatus()
+                                               .stop_sign()
+                                               .current_stop_sign_overlap_id();
+  if (!stop_sign_overlap_id.empty()) {
+    // get overlap along reference line
+    PathOverlap* current_stop_sign_overlap =
+        scenario::util::GetOverlapOnReferenceLine(*reference_line_info,
+                                                  stop_sign_overlap_id,
+                                                  ReferenceLineInfo::STOP_SIGN);
+    if (current_stop_sign_overlap) {
+      stop_line_s = current_stop_sign_overlap->end_s;
+    }
+  } else if (PlanningContext::Planningstatus()
+                 .traffic_light()
+                 .current_traffic_light_overlap_id_size() > 0) {
+    // get overlap along reference line
+    const std::string current_traffic_light_overlap_id =
+        PlanningContext::Planningstatus()
+            .traffic_light()
+            .current_traffic_light_overlap_id(0);
+    PathOverlap* current_traffic_light_overlap =
+        scenario::util::GetOverlapOnReferenceLine(
+            *reference_line_info,
+            current_traffic_light_overlap_id,
+            ReferenceLineInfo::SIGNAL);
+    if (current_traffic_light_overlap) {
+      stop_line_s = current_traffic_light_overlap->end_s;
+    }
+  }
+  if (stop_line_s > 0.0) {
+    BuildStopDecision(stop_line_s, frame, reference_line_info);
+  }
 
   return Status::OK();
 }
@@ -57,14 +89,14 @@ double DeciderCreep::FindCreepDistance(
 }
 
 // TODO(all): revisit & rewrite
-bool DeciderCreep::BuildStopDecision(const double stop_sign_overlap_end_s,
+bool DeciderCreep::BuildStopDecision(const double stop_line_s,
                                      Frame* frame,
                                      ReferenceLineInfo* reference_line_info) {
   CHECK_NOTNULL(frame);
   CHECK_NOTNULL(reference_line_info);
 
   double creep_stop_s =
-      stop_sign_overlap_end_s + FindCreepDistance(*frame, *reference_line_info);
+      stop_line_s + FindCreepDistance(*frame, *reference_line_info);
 
   // create virtual stop wall
   std::string virtual_obstacle_id = CREEP_VO_ID_PREFIX + std::string("SS");
@@ -105,8 +137,8 @@ bool DeciderCreep::BuildStopDecision(const double stop_sign_overlap_end_s,
 bool DeciderCreep::CheckCreepDone(const Frame& frame,
                                   const ReferenceLineInfo& reference_line_info,
                                   const double stop_sign_overlap_end_s,
-                                  const double wait_time,
-                                  const double timeout) {
+                                  const double wait_time_sec,
+                                  const double timeout_sec) {
   const auto& creep_config = config_.decider_creep_config();
   bool creep_done = false;
   double creep_stop_s =
@@ -115,7 +147,7 @@ bool DeciderCreep::CheckCreepDone(const Frame& frame,
   const double distance =
       creep_stop_s - reference_line_info.AdcSlBoundary().end_s();
   if (distance < creep_config.max_valid_stop_distance() ||
-      wait_time >= timeout) {
+      wait_time_sec >= timeout_sec) {
     bool all_far_away = true;
     for (auto* obstacle :
          reference_line_info.path_decision().obstacles().Items()) {
@@ -126,14 +158,13 @@ bool DeciderCreep::CheckCreepDone(const Frame& frame,
           creep_config.min_boundary_t()) {
         const double kepsilon = 1e-6;
         double obstacle_traveled_s =
-            obstacle->reference_line_st_boundary().BottomLeftPoint().s() -
-            obstacle->reference_line_st_boundary().BottomRightPoint().s();
-        ADEBUG << "obstacle[" << obstacle->Id()
-            << "] obstacle_st_min_t["
-            << obstacle->reference_line_st_boundary().min_t()
-            << "] obstacle_st_min_s["
-            << obstacle->reference_line_st_boundary().min_s()
-            << "] obstacle_traveled_s[" << obstacle_traveled_s << "]";
+            obstacle->reference_line_st_boundary().bottom_left_point().s() -
+            obstacle->reference_line_st_boundary().bottom_right_point().s();
+        ADEBUG << "obstacle[" << obstacle->Id() << "] obstacle_st_min_t["
+               << obstacle->reference_line_st_boundary().min_t()
+               << "] obstacle_st_min_s["
+               << obstacle->reference_line_st_boundary().min_s()
+               << "] obstacle_traveled_s[" << obstacle_traveled_s << "]";
 
         // ignore the obstacle which is already on reference line and moving
         // along the direction of ADC
@@ -156,23 +187,6 @@ bool DeciderCreep::CheckCreepDone(const Frame& frame,
     }
   }
   return creep_done;
-}
-
-void DeciderCreep::SetProceedWithCautionSpeedParam(
-    const Frame& frame, const ReferenceLineInfo& reference_line_info,
-    const double stop_sign_overlap_end_s) {
-  double creep_stop_s =
-      stop_sign_overlap_end_s + FindCreepDistance(frame, reference_line_info);
-
-  const double adc_front_end_s = reference_line_info.AdcSlBoundary().end_s();
-  const double creep_distance = creep_stop_s - adc_front_end_s;
-
-  PlanningContext::GetScenarioInfo()
-      ->proceed_with_caution_speed.is_fixed_distance = true;
-  PlanningContext::GetScenarioInfo()->proceed_with_caution_speed.distance =
-      creep_distance;
-  ADEBUG << "creep_stop_s[" << creep_stop_s << "] adc_front_end_s["
-         << adc_front_end_s << "] creep distance[" << creep_distance << "]";
 }
 
 }  // namespace planning

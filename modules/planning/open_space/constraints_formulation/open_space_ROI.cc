@@ -45,13 +45,10 @@ bool OpenSpaceROI::GenerateRegionOfInterest(Frame *frame) {
   // open space planner to save computation effort
   vehicle_state_ = frame->vehicle_state();
   obstacles_by_frame_ = frame->GetObstacleList();
-  if (frame->local_view().routing->routing_request().has_parking_space() &&
-      frame->local_view().routing->routing_request().parking_space().has_id()) {
-    target_parking_spot_id_ = frame->local_view()
-                                  .routing->routing_request()
-                                  .parking_space()
-                                  .id()
-                                  .id();
+  const auto &parking_space =
+      frame->local_view().routing->routing_request().parking_space();
+  if (parking_space.has_id()) {
+    target_parking_spot_id_ = parking_space.id().id();
   } else {
     AERROR << "Failed to get parking space id from routing";
     return false;
@@ -75,7 +72,7 @@ bool OpenSpaceROI::VPresentationObstacle() {
     size_t perception_obstacles_num = obstacles_by_frame_->Items().size();
     obstacles_num_ = perception_obstacles_num + parking_boundaries_num;
     if (perception_obstacles_num == 0) {
-      AERROR << "no obstacle given by percption";
+      AERROR << "no obstacle given by perception";
     }
     // load vertice vector for distance approach
     Eigen::MatrixXi perception_obstacles_edges_num_ =
@@ -120,7 +117,7 @@ bool OpenSpaceROI::VPresentationObstacle() {
 
   // load vertices for parking boundary (not need to repeat the first vertice to
   // get close hull)
-  for (size_t i = 0; i < parking_boundaries_num; i++) {
+  for (size_t i = 0; i < parking_boundaries_num; ++i) {
     // directly load the ROI_distance_approach_parking_boundary_ into
     // obstacles_vertices_vec_
     obstacles_vertices_vec_.emplace_back(ROI_parking_boundary_[i]);
@@ -141,8 +138,7 @@ bool OpenSpaceROI::HPresentationObstacle() {
 }
 
 bool OpenSpaceROI::ObsHRep(
-    const size_t &obstacles_num,
-    const Eigen::MatrixXi &obstacles_edges_num,
+    const size_t &obstacles_num, const Eigen::MatrixXi &obstacles_edges_num,
     const std::vector<std::vector<Vec2d>> &obstacles_vertices_vec,
     Eigen::MatrixXd *A_all, Eigen::MatrixXd *b_all) {
   if (obstacles_num != obstacles_vertices_vec.size()) {
@@ -235,9 +231,7 @@ bool OpenSpaceROI::GetOpenSpaceROI() {
   double right_top_l = 0.0;
   if (!(nearby_path->GetProjection(left_top, &left_top_s, &left_top_l) &&
         nearby_path->GetProjection(right_top, &right_top_s, &right_top_l))) {
-    std::string msg(
-        "fail to get parking spot points' projections on reference line");
-    AERROR << msg;
+    AERROR << "fail to get parking spot points' projections on reference line";
     return false;
   }
   // start or end, left or right is decided by the vehicle's heading
@@ -412,13 +406,11 @@ void OpenSpaceROI::SearchTargetParkingSpotOnPath(
     std::shared_ptr<Path> *nearby_path,
     ParkingSpaceInfoConstPtr *target_parking_spot) {
   const auto &parking_space_overlaps = (*nearby_path)->parking_space_overlaps();
-  if (parking_space_overlaps.size() != 0) {
-    for (const auto &parking_overlap : parking_space_overlaps) {
-      if (parking_overlap.object_id == target_parking_spot_id_) {
-        hdmap::Id id;
-        id.set_id(parking_overlap.object_id);
-        *target_parking_spot = hdmap_->GetParkingSpaceById(id);
-      }
+  for (const auto &parking_overlap : parking_space_overlaps) {
+    if (parking_overlap.object_id == target_parking_spot_id_) {
+      hdmap::Id id;
+      id.set_id(parking_overlap.object_id);
+      *target_parking_spot = hdmap_->GetParkingSpaceById(id);
     }
   }
 }
@@ -443,7 +435,7 @@ bool OpenSpaceROI::GetMapInfo(ParkingSpaceInfoConstPtr *target_parking_spot,
   std::vector<LaneSegment> segments_vector;
   int next_lanes_num = nearest_lane->lane().successor_id_size();
   if (next_lanes_num != 0) {
-    for (int i = 0; i < next_lanes_num; i++) {
+    for (int i = 0; i < next_lanes_num; ++i) {
       auto next_lane_id = nearest_lane->lane().successor_id(i);
       segments_vector.push_back(nearest_lanesegment);
       auto next_lane = hdmap_->GetLaneById(next_lane_id);

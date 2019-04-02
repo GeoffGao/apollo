@@ -98,7 +98,7 @@ Status NaviPlanner::Init(const PlanningConfig& config) {
 }
 
 Status NaviPlanner::Plan(const TrajectoryPoint& planning_init_point,
-                         Frame* frame) {
+                         Frame* frame, ADCTrajectory* ptr_computed_trajectory) {
   // NaviPlanner is only used in navigation mode based on the real-time relative
   // map.
   if (!FLAGS_use_navigation_mode) {
@@ -170,7 +170,7 @@ Status NaviPlanner::PlanOnReferenceLine(
     const double time_diff_ms = (end_timestamp - start_timestamp) * 1000;
 
     ADEBUG << "after task " << task->Name() << ":"
-           << reference_line_info->PathSpeedDebugString() << std::endl;
+           << reference_line_info->PathSpeedDebugString();
     ADEBUG << task->Name() << " time spend: " << time_diff_ms << " ms.";
 
     RecordDebugInfo(reference_line_info, task->Name(), time_diff_ms);

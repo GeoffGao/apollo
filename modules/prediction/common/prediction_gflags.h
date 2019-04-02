@@ -40,14 +40,18 @@ DECLARE_double(lane_search_radius);
 DECLARE_double(lane_search_radius_in_junction);
 DECLARE_double(junction_search_radius);
 DECLARE_double(pedestrian_nearby_lane_search_radius);
+DECLARE_int32(road_graph_max_search_horizon);
 
 // Scenario
 DECLARE_double(junction_distance_threshold);
-DECLARE_bool(enable_prioritize_obstacles);
-DECLARE_bool(enable_junction_feature);
 DECLARE_bool(enable_all_junction);
+DECLARE_double(caution_search_distance_ahead);
+DECLARE_double(caution_search_distance_backward_for_merge);
+DECLARE_double(caution_search_distance_backward_for_overlap);
+DECLARE_double(caution_pedestrian_approach_time);
 
 // Obstacle features
+DECLARE_int32(ego_vehicle_id);
 DECLARE_double(scan_length);
 DECLARE_double(scan_width);
 DECLARE_double(back_dist_ignore_ped);
@@ -80,11 +84,12 @@ DECLARE_double(pedestrian_max_speed);
 DECLARE_double(pedestrian_max_acc);
 DECLARE_double(still_speed);
 DECLARE_string(evaluator_vehicle_mlp_file);
-DECLARE_string(evaluator_cruise_vehicle_go_model_file);
-DECLARE_string(evaluator_cruise_vehicle_cutin_model_file);
+DECLARE_string(torch_vehicle_junction_mlp_file);
+DECLARE_string(torch_vehicle_cruise_go_file);
+DECLARE_string(torch_vehicle_cruise_cutin_file);
+DECLARE_string(torch_vehicle_lane_scanning_file);
 DECLARE_string(evaluator_vehicle_rnn_file);
 DECLARE_string(evaluator_vehicle_cruise_mlp_file);
-DECLARE_string(evaluator_vehicle_junction_mlp_file);
 DECLARE_int32(max_num_obstacles);
 DECLARE_double(valid_position_diff_threshold);
 DECLARE_double(valid_position_diff_rate_threshold);
@@ -97,11 +102,13 @@ DECLARE_double(heading_filter_param);
 DECLARE_uint64(max_num_lane_point);
 DECLARE_double(distance_threshold_to_junction_exit);
 DECLARE_double(angle_threshold_to_junction_exit);
+DECLARE_uint32(sample_size_for_average_lane_curvature);
 
 // Validation checker
 DECLARE_double(centripetal_acc_coeff);
 
 // Junction Scenario
+DECLARE_uint32(junction_historical_frame_length);
 DECLARE_double(junction_exit_lane_threshold);
 DECLARE_double(distance_beyond_junction);
 DECLARE_double(defualt_junction_range);
@@ -111,6 +118,7 @@ DECLARE_double(distance_to_slow_down_at_stop_sign);
 DECLARE_double(time_to_center_if_not_reach);
 DECLARE_double(default_s_if_no_obstacle_in_lane_sequence);
 DECLARE_double(default_l_if_no_obstacle_in_lane_sequence);
+DECLARE_bool(enable_build_current_frame_env);
 
 // Obstacle trajectory
 DECLARE_bool(enable_cruise_regression);
@@ -138,8 +146,16 @@ DECLARE_double(cost_function_alpha);
 DECLARE_double(cost_function_sigma);
 DECLARE_bool(use_bell_curve_for_cost_function);
 
-DECLARE_int32(road_graph_max_search_horizon);
+// interaction predictor
+DECLARE_double(collision_cost_time_resolution);
+DECLARE_double(centripedal_acceleration_cost_weight);
+DECLARE_double(collision_cost_weight);
+DECLARE_double(collision_cost_exp_coefficient);
+DECLARE_double(likelihood_exp_coefficient);
 
 // scenario feature extraction
 DECLARE_double(lane_distance_threshold);
 DECLARE_double(lane_angle_difference_threshold);
+
+// Trajectory evaluation
+DECLARE_double(distance_threshold_on_lane);

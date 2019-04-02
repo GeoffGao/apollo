@@ -16,7 +16,7 @@
 
 #include "modules/prediction/evaluator/vehicle/mlp_evaluator.h"
 
-#include "modules/common/util/file.h"
+#include "cyber/common/file.h"
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/container/obstacles/obstacles_container.h"
 
@@ -26,9 +26,9 @@ namespace prediction {
 class MLPEvaluatorTest : public KMLMapBasedTest {
  public:
   void SetUp() override {
-    std::string file =
+    const std::string file =
         "modules/prediction/testdata/single_perception_vehicle_onlane.pb.txt";
-    CHECK(apollo::common::util::GetProtoFromFile(file, &perception_obstacles_));
+    CHECK(cyber::common::GetProtoFromFile(file, &perception_obstacles_));
   }
 
  protected:
@@ -46,7 +46,7 @@ TEST_F(MLPEvaluatorTest, OnLaneCase) {
   container.Insert(perception_obstacles_);
   container.BuildLaneGraph();
   Obstacle* obstacle_ptr = container.GetObstacle(1);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
   mlp_evaluator.Evaluate(obstacle_ptr);
   const Feature& feature = obstacle_ptr->latest_feature();
   const LaneGraph& lane_graph = feature.lane().lane_graph();

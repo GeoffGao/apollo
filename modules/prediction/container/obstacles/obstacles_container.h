@@ -90,19 +90,37 @@ class ObstaclesContainer : public Container {
   Obstacle* GetObstacle(const int id);
 
   /**
-   * @brief Get predictable obstacle IDs in the current frame
-   * @return Predictable obstacle IDs in the current frame
-   */
-  const std::vector<int>& GetCurrentFramePredictableObstacleIds() const;
-
-  /**
    * @brief Clear obstacle container
    */
   void Clear();
 
   size_t NumOfObstacles() { return ptr_obstacles_.size(); }
 
+  const apollo::perception::PerceptionObstacle& GetPerceptionObstacle(
+      const int id);
+
+  /**
+   * @brief Get predictable obstacle IDs in the current frame
+   * @return Predictable obstacle IDs in the current frame
+   */
+  const std::vector<int>& curr_frame_predictable_obstacle_ids();
+
+  /**
+   * @brief Get non-predictable obstacle IDs in the current frame
+   * @return Non-predictable obstacle IDs in the current frame
+   */
+  const std::vector<int>& curr_frame_non_predictable_obstacle_ids();
+
+  /**
+   * @brief Get current frame obstacle IDs in the current frame
+   * @return Current frame obstacle IDs in the current frame
+   */
+  std::vector<int> curr_frame_obstacle_ids();
+
+  double timestamp() const;
+
  private:
+  Obstacle* GetObstacleWithLRUUpdate(const int obstacle_id);
   /**
    * @brief Check if a perception_obstacle is an old existed obstacle
    * @param A PerceptionObstacle
@@ -110,7 +128,7 @@ class ObstaclesContainer : public Container {
    * @return True if the perception_obstacle is this obstacle; otherwise false;
    */
   bool AdaptTracking(const perception::PerceptionObstacle& perception_obstacle,
-                      Obstacle* obstacle_ptr);
+                     Obstacle* obstacle_ptr);
 
   /**
    * @brief Check if an obstacle is predictable
@@ -119,13 +137,20 @@ class ObstaclesContainer : public Container {
    */
   bool IsPredictable(const perception::PerceptionObstacle& perception_obstacle);
 
+  int PerceptionIdToPredictionId(const int perception_id);
+
  private:
   double timestamp_ = -1.0;
   common::util::LRUCache<int, std::unique_ptr<Obstacle>> ptr_obstacles_;
   // an id_mapping from perception_id to prediction_id
   common::util::LRUCache<int, int> id_mapping_;
   std::vector<int> curr_frame_predictable_obstacle_ids_;
+  std::vector<int> curr_frame_non_predictable_obstacle_ids_;
+  // perception_id -> prediction_id
   std::unordered_map<int, int> curr_frame_id_mapping_;
+  // prediction_id -> perception_obstacle
+  std::unordered_map<int, apollo::perception::PerceptionObstacle>
+      curr_frame_id_perception_obstacle_map_;
 };
 
 }  // namespace prediction

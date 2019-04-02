@@ -51,8 +51,8 @@ class GarageTest : public PlanningTestBase {
     FLAGS_enable_rss_info = false;
 
     FLAGS_enable_scenario_side_pass = false;
-    FLAGS_enable_scenario_stop_sign_unprotected = false;
-    FLAGS_enable_scenario_traffic_light_right_turn_unprotected = false;
+    FLAGS_enable_scenario_stop_sign = false;
+    FLAGS_enable_scenario_traffic_light = false;
   }
 };
 
@@ -96,7 +96,6 @@ TEST_F(GarageTest, follow) {
  */
 TEST_F(GarageTest, dest_stop_01) {
   ENABLE_RULE(TrafficRuleConfig::PULL_OVER, false);
-  ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
 
   FLAGS_test_prediction_file = "stop_dest_prediction.pb.txt";
   FLAGS_test_localization_file = "stop_dest_localization.pb.txt";

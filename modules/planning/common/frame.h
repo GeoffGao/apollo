@@ -22,7 +22,10 @@
 
 #include <list>
 #include <map>
+#include <memory>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "modules/common/proto/geometry.pb.h"
@@ -39,12 +42,11 @@
 #include "modules/common/status/status.h"
 #include "modules/planning/common/change_lane_decider.h"
 #include "modules/planning/common/indexed_queue.h"
-// #include "modules/planning/common/lag_prediction.h"
 #include "modules/planning/common/local_view.h"
 #include "modules/planning/common/obstacle.h"
+#include "modules/planning/common/open_space_info.h"
 #include "modules/planning/common/reference_line_info.h"
 #include "modules/planning/common/trajectory/publishable_trajectory.h"
-#include "modules/planning/common/trajectory_info.h"
 #include "modules/planning/reference_line/reference_line_provider.h"
 
 namespace apollo {
@@ -59,18 +61,15 @@ namespace planning {
 class Frame {
  public:
   explicit Frame(uint32_t sequence_num);
-  explicit Frame(uint32_t sequence_num, const LocalView &local_view,
-                 const common::TrajectoryPoint &planning_start_point,
-                 const double start_time,
-                 const common::VehicleState &vehicle_state,
-                 ReferenceLineProvider *reference_line_provider,
-                 ADCTrajectory *output_trajectory);
 
-  explicit Frame(uint32_t sequence_num, const LocalView &local_view,
-                 const common::TrajectoryPoint &planning_start_point,
-                 const double start_time,
-                 const common::VehicleState &vehicle_state,
-                 ADCTrajectory *output_trajectory);
+  Frame(uint32_t sequence_num, const LocalView &local_view,
+        const common::TrajectoryPoint &planning_start_point,
+        const common::VehicleState &vehicle_state,
+        ReferenceLineProvider *reference_line_provider);
+
+  Frame(uint32_t sequence_num, const LocalView &local_view,
+        const common::TrajectoryPoint &planning_start_point,
+        const common::VehicleState &vehicle_state);
 
   const common::TrajectoryPoint &PlanningStartPoint() const;
 
@@ -89,12 +88,8 @@ class Frame {
 
   void RecordInputDebug(planning_internal::Debug *debug);
 
-  void RecordOpenSpacePlannerDebug(planning_internal::Debug *debug);
-
   const std::list<ReferenceLineInfo> &reference_line_info() const;
   std::list<ReferenceLineInfo> *mutable_reference_line_info();
-  const std::list<TrajectoryInfo> &trajectory_info() const;
-  std::list<TrajectoryInfo> *mutable_trajectory_info();
 
   Obstacle *Find(const std::string &id);
 
@@ -125,12 +120,18 @@ class Frame {
       const double planning_start_time,
       prediction::PredictionObstacles *prediction_obstacles);
 
-  ADCTrajectory *mutable_trajectory() { return &trajectory_; }
+  void set_current_frame_planned_trajectory(
+      ADCTrajectory current_frame_planned_trajectory) {
+    current_frame_planned_trajectory_ =
+        std::move(current_frame_planned_trajectory);
+  }
 
-  const ADCTrajectory &trajectory() const { return trajectory_; }
+  const ADCTrajectory &current_frame_planned_trajectory() const {
+    return current_frame_planned_trajectory_;
+  }
 
-  ADCTrajectory *output_trajectory() { return output_trajectory_; }
-
+  // TODO(Qi, Jinyun): check the usage in open space planner
+  //                   and remove it from frame
   planning_internal::OpenSpaceDebug *mutable_open_space_debug() {
     return &open_space_debug_;
   }
@@ -139,6 +140,8 @@ class Frame {
     return open_space_debug_;
   }
 
+  // TODO(Qi, Jinyun): check the usage in open space planner
+  //                   and remove it from frame
   std::vector<common::TrajectoryPoint> *mutable_last_stitching_trajectory() {
     return &stitching_trajectory_;
   }
@@ -159,6 +162,12 @@ class Frame {
   const LocalView &local_view() const { return local_view_; }
 
   ThreadSafeIndexedObstacles *GetObstacleList() { return &obstacles_; }
+
+  const OpenSpaceInfo &open_space_info() const { return open_space_info_; }
+
+  OpenSpaceInfo *mutable_open_space_info() { return &open_space_info_; }
+
+  perception::TrafficLight GetSignal(const std::string &traffic_light_id) const;
 
  private:
   common::Status InitFrameData();
@@ -182,15 +191,15 @@ class Frame {
 
   void AddObstacle(const Obstacle &obstacle);
 
+  void ReadTrafficLights();
+
  private:
   uint32_t sequence_num_ = 0;
   LocalView local_view_;
   const hdmap::HDMap *hdmap_ = nullptr;
   common::TrajectoryPoint planning_start_point_;
-  double start_time_ = 0.0;
   common::VehicleState vehicle_state_;
   std::list<ReferenceLineInfo> reference_line_info_;
-  std::list<TrajectoryInfo> trajectory_info_;
 
   bool is_near_destination_ = false;
 
@@ -200,26 +209,24 @@ class Frame {
   const ReferenceLineInfo *drive_reference_line_info_ = nullptr;
 
   ThreadSafeIndexedObstacles obstacles_;
+  std::unordered_map<std::string, const perception::TrafficLight *>
+      traffic_lights_;
+
   ChangeLaneDecider change_lane_decider_;
-  ADCTrajectory trajectory_;  // last published trajectory
+  ADCTrajectory current_frame_planned_trajectory_;  // last published trajectory
 
   // debug info for open space planner
   planning_internal::OpenSpaceDebug open_space_debug_;
   // stitching trajectory for open space planner
   std::vector<common::TrajectoryPoint> stitching_trajectory_;
 
-  // TODO(all): change to use shared_ptr.
-  // output trajectory pb
-  ADCTrajectory *output_trajectory_ = nullptr;  // not owned
-
-  // TODO(All): add lag_predictor back
-  // std::unique_ptr<LagPrediction> lag_predictor_;
   const ReferenceLineProvider *reference_line_provider_ = nullptr;
+
+  OpenSpaceInfo open_space_info_;
 
   std::vector<routing::LaneWaypoint> future_route_waypoints_;
 
   common::monitor::MonitorLogBuffer monitor_logger_buffer_;
-  bool init_data_ = false;
 };
 
 class FrameHistory : public IndexedQueue<uint32_t, Frame> {

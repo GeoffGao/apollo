@@ -30,8 +30,8 @@
 #include "modules/perception/proto/perception_obstacle.pb.h"
 #include "modules/planning/common/frame.h"
 #include "modules/planning/common/planning_context.h"
+#include "modules/planning/common/util/util.h"
 #include "modules/planning/proto/sl_boundary.pb.h"
-#include "modules/planning/traffic_rules/util.h"
 
 namespace apollo {
 namespace planning {
@@ -262,8 +262,8 @@ bool PullOver::OnOverlap(const double start_s, const double end_s) {
         end_s >= pnc_junction_overlap.start_s) {
       ADEBUG << "s[" << start_s << ", " << end_s << "] on pnc_junction_overlap["
              << pnc_junction_overlap.object_id << "] s["
-             << pnc_junction_overlap.start_s
-             << ", " << pnc_junction_overlap.end_s << "]";
+             << pnc_junction_overlap.start_s << ", "
+             << pnc_junction_overlap.end_s << "]";
       return true;
     }
   }
@@ -505,9 +505,9 @@ bool PullOver::CheckPullOverComplete() {
 }
 
 bool PullOver::CheckStopDeceleration(const double stop_line_s) const {
+  const double adc_front_edge_s = reference_line_info_->AdcSlBoundary().end_s();
   double stop_deceleration =
-      util::GetADCStopDeceleration(reference_line_info_, stop_line_s,
-                                   config_.pull_over().min_pass_s_distance());
+      util::GetADCStopDeceleration(adc_front_edge_s, stop_line_s);
   return (stop_deceleration <= config_.pull_over().max_stop_deceleration());
 }
 

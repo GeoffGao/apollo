@@ -38,19 +38,14 @@ class ScenarioManager {
   void Run();
 
   /**
+   * @brief Assign right_of_way for current frame
+   */
+  void AssignRightOfWay();
+
+  /**
    * @brief Get scenario analysis result
    */
   const Scenario& scenario() const;
-
- private:
-  void PrioritizeObstacles(
-      const EnvironmentFeatures& environment_features,
-      const std::shared_ptr<ScenarioFeatures> scenario_features);
-
-  void PrioritizeObstaclesForCruiseScenario(
-      const EnvironmentFeatures& environment_features,
-      const std::shared_ptr<CruiseScenarioFeatures> scenario_features,
-      ObstaclesContainer* ptr_obstacle_contrainer);
 
  private:
   Scenario current_scenario_;

@@ -73,8 +73,8 @@ proto_library(
         "//modules/common/proto:geometry_proto_lib",
         "//modules/common/proto:pnc_point_proto_lib",
         "//modules/perception/proto:perception_proto_lib",
-        "//modules/prediction/proto:prediction_point_proto_lib",
         "//modules/prediction/proto:lane_graph_proto_lib",
+        "//modules/prediction/proto:prediction_point_proto_lib",
     ],
 )
 
@@ -92,6 +92,7 @@ proto_library(
     ],
     deps = [
         "//modules/prediction/proto:feature_proto_lib",
+        "//modules/prediction/proto:prediction_proto_lib",
     ],
 )
 
@@ -158,23 +159,6 @@ proto_library(
 )
 
 cc_proto_library(
-    name = "cruise_model_proto",
-    deps = [
-        ":cruise_model_proto_lib",
-    ],
-)
-
-proto_library(
-    name = "cruise_model_proto_lib",
-    srcs = [
-        "cruise_model.proto",
-    ],
-    deps = [
-        ":network_model_proto_lib",
-    ],
-)
-
-cc_proto_library(
     name = "prediction_point_proto",
     deps = [
         ":prediction_point_proto_lib",
@@ -185,6 +169,22 @@ proto_library(
     name = "prediction_point_proto_lib",
     srcs = [
         "prediction_point.proto",
+    ],
+    deps = [
+    ],
+)
+
+cc_proto_library(
+    name = "prediction_output_evaluation_proto",
+    deps = [
+        ":prediction_output_evaluation_proto_lib",
+    ],
+)
+
+proto_library(
+    name = "prediction_output_evaluation_proto_lib",
+    srcs = [
+        "prediction_output_evaluation.proto",
     ],
     deps = [
     ],

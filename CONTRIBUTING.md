@@ -18,17 +18,17 @@ make sure your changes follow the guidelines mentioned below, namely: license, t
 
 For each new file, please include a license at the top of the file.
 
-* C++ code License example [adapter.h](https://github.com/ApolloAuto/apollo/blob/master/modules/common/adapters/adapter.h);
+* C++ code License example [util.h](modules/common/util/util.h);
 
-* Python code License example [diagnostics.py](https://github.com/ApolloAuto/apollo/blob/master/modules/tools/diagnostics/diagnostics.py);
+* Python code License example [process.py](modules/tools/vehicle_calibration/process.py);
 
-* Bash code License example [apollo_base.sh](https://github.com/ApolloAuto/apollo/blob/master/scripts/apollo_base.sh);
+* Bash code License example [apollo_base.sh](scripts/apollo_base.sh);
 
 #### Testing
 
 Please include unit tests for the contributed code to prove that your code works correctly,
 and make sure that your code does not break existing tests. Test files are always named to end with `_test.cc`, and the test target names in the BUILD file always end with `test`.
-Here is an example test file [adapter_test.cc](https://github.com/ApolloAuto/apollo/blob/master/modules/common/adapters/adapter_test.cc).
+Here is an example test file [file_test.cc](cyber/common/file_test.cc).
 
 You can use command `bash apollo.sh test` to run all unit tests.
 
@@ -37,6 +37,8 @@ You can use command `bash apollo.sh test` to run all unit tests.
 * **C/C++ coding style**: Apollo adopted the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html). Make sure your code conforms to this style guide. You can use command `bash apollo.sh lint` to check if your code has any style problem.
 
 * **Python coding style**:  Apollo adopted the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html). You can use the  [yapf](https://github.com/google/yapf) command `yapf -i --style='{based_on_style: google}' foo.py` to format a file foo.py.
+
+* **Apollo best coding practice**: Please also refer to [Apollo Best Coding Practice](docs/technical_tutorial/best_coding_practice.md) for more coding practice disciplines.
 
 * **BUILD coding style** : you can use command `bash apollo.sh buildify` to format your BUILD files before you submit.
 

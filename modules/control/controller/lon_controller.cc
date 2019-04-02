@@ -15,6 +15,7 @@
  *****************************************************************************/
 #include "modules/control/controller/lon_controller.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "cyber/common/log.h"
@@ -42,8 +43,9 @@ LonController::LonController()
     time_t rawtime;
     char name_buffer[80];
     std::time(&rawtime);
-    strftime(name_buffer, 80, "/tmp/speed_log__%F_%H%M%S.csv",
-             localtime(&rawtime));
+    std::tm time_tm;
+    localtime_r(&rawtime, &time_tm);
+    strftime(name_buffer, 80, "/tmp/speed_log__%F_%H%M%S.csv", &time_tm);
     speed_log_file_ = fopen(name_buffer, "w");
     if (speed_log_file_ == nullptr) {
       AERROR << "Fail to open file:" << name_buffer;
@@ -99,9 +101,19 @@ Status LonController::Init(const ControlConf *control_conf) {
   }
   const LonControllerConf &lon_controller_conf =
       control_conf_->lon_controller_conf();
+  double ts = lon_controller_conf.ts();
+  bool enable_leadlag =
+      lon_controller_conf.enable_reverse_leadlag_compensation();
 
   station_pid_controller_.Init(lon_controller_conf.station_pid_conf());
   speed_pid_controller_.Init(lon_controller_conf.low_speed_pid_conf());
+
+  if (enable_leadlag) {
+    station_leadlag_controller_.Init(
+        lon_controller_conf.reverse_station_leadlag_conf(), ts);
+    speed_leadlag_controller_.Init(
+        lon_controller_conf.reverse_speed_leadlag_conf(), ts);
+  }
 
   vehicle_param_.CopyFrom(
       common::VehicleConfigHelper::Instance()->GetConfig().vehicle_param());
@@ -169,6 +181,8 @@ Status LonController::ComputeControlCommand(
   double throttle_cmd = 0.0;
   double ts = lon_controller_conf.ts();
   double preview_time = lon_controller_conf.preview_window() * ts;
+  bool enable_leadlag =
+      lon_controller_conf.enable_reverse_leadlag_compensation();
 
   if (preview_time < 0.0) {
     const auto error_msg = common::util::StrCat(
@@ -193,6 +207,12 @@ Status LonController::ComputeControlCommand(
     station_pid_controller_.SetPID(
         lon_controller_conf.reverse_station_pid_conf());
     speed_pid_controller_.SetPID(lon_controller_conf.reverse_speed_pid_conf());
+    if (enable_leadlag) {
+      station_leadlag_controller_.SetLeadlag(
+          lon_controller_conf.reverse_station_leadlag_conf());
+      speed_leadlag_controller_.SetLeadlag(
+          lon_controller_conf.reverse_speed_leadlag_conf());
+    }
   } else if (VehicleStateProvider::Instance()->linear_velocity() <=
              lon_controller_conf.switch_speed()) {
     speed_pid_controller_.SetPID(lon_controller_conf.low_speed_pid_conf());
@@ -202,6 +222,9 @@ Status LonController::ComputeControlCommand(
 
   double speed_offset =
       station_pid_controller_.Control(station_error_limited, ts);
+  if (enable_leadlag) {
+    speed_offset = station_leadlag_controller_.Control(speed_offset, ts);
+  }
 
   double speed_controller_input = 0.0;
   double speed_controller_input_limit =
@@ -220,11 +243,19 @@ Status LonController::ComputeControlCommand(
 
   acceleration_cmd_closeloop =
       speed_pid_controller_.Control(speed_controller_input_limited, ts);
+  debug->set_pid_saturation_status(
+      speed_pid_controller_.IntegratorSaturationStatus());
+  if (enable_leadlag) {
+    acceleration_cmd_closeloop =
+        speed_leadlag_controller_.Control(acceleration_cmd_closeloop, ts);
+    debug->set_leadlag_saturation_status(
+        speed_leadlag_controller_.InnerstateSaturationStatus());
+  }
 
   double slope_offset_compenstaion = digital_filter_pitch_angle_.Filter(
       GRA_ACC * std::sin(VehicleStateProvider::Instance()->pitch()));
 
-  if (isnan(slope_offset_compenstaion)) {
+  if (std::isnan(slope_offset_compenstaion)) {
     slope_offset_compenstaion = 0;
   }
 
@@ -248,13 +279,18 @@ Status LonController::ComputeControlCommand(
     debug->set_is_full_stop(true);
   }
 
-  double throttle_deadzone = lon_controller_conf.throttle_deadzone();
-  double brake_deadzone = lon_controller_conf.brake_deadzone();
+  double throttle_lowerbound =
+      std::max(lon_controller_conf.throttle_deadzone(),
+               lon_controller_conf.throttle_minimum_action());
+  double brake_lowerbound =
+      std::max(lon_controller_conf.brake_deadzone(),
+               lon_controller_conf.brake_minimum_action());
   double calibration_value = 0.0;
   double acceleration_lookup =
       (chassis->gear_location() == canbus::Chassis::GEAR_REVERSE)
           ? -acceleration_cmd
           : acceleration_cmd;
+
   if (FLAGS_use_preview_speed_for_table) {
     calibration_value = control_interpolation_->Interpolate(
         std::make_pair(debug->preview_speed_reference(), acceleration_lookup));
@@ -264,15 +300,11 @@ Status LonController::ComputeControlCommand(
   }
 
   if (calibration_value >= 0) {
-    throttle_cmd = std::abs(calibration_value) > throttle_deadzone
-                       ? std::abs(calibration_value)
-                       : throttle_deadzone;
+    throttle_cmd = std::max(calibration_value, throttle_lowerbound);
     brake_cmd = 0.0;
   } else {
     throttle_cmd = 0.0;
-    brake_cmd = std::abs(calibration_value) > brake_deadzone
-                    ? std::abs(calibration_value)
-                    : brake_deadzone;
+    brake_cmd = std::max(-calibration_value, brake_lowerbound);
   }
 
   debug->set_station_error_limited(station_error_limited);
@@ -300,8 +332,10 @@ Status LonController::ComputeControlCommand(
             debug->is_full_stop());
   }
 
+  // if the car is driven by acceleration, disgard the cmd->throttle and brake
   cmd->set_throttle(throttle_cmd);
   cmd->set_brake(brake_cmd);
+  cmd->set_acceleration(acceleration_cmd);
 
   if (std::fabs(VehicleStateProvider::Instance()->linear_velocity()) <=
           vehicle_param_.max_abs_speed_when_stopped() ||

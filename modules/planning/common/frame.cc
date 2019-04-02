@@ -21,12 +21,14 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 
 #include "modules/routing/proto/routing.pb.h"
 
 #include "cyber/common/log.h"
 #include "modules/common/configs/vehicle_config_helper.h"
 #include "modules/common/math/vec2d.h"
+#include "modules/common/time/time.h"
 #include "modules/common/vehicle_state/vehicle_state_provider.h"
 #include "modules/map/hdmap/hdmap_util.h"
 #include "modules/map/pnc_map/path.h"
@@ -34,6 +36,7 @@
 #include "modules/planning/common/ego_info.h"
 #include "modules/planning/common/planning_context.h"
 #include "modules/planning/common/planning_gflags.h"
+#include "modules/planning/common/util/util.h"
 #include "modules/planning/reference_line/reference_line_provider.h"
 
 namespace apollo {
@@ -43,6 +46,7 @@ using apollo::common::ErrorCode;
 using apollo::common::Status;
 using apollo::common::math::Box2d;
 using apollo::common::math::Polygon2d;
+using apollo::common::time::Clock;
 using apollo::prediction::PredictionObstacles;
 
 constexpr double kMathEpsilon = 1e-8;
@@ -52,31 +56,24 @@ FrameHistory::FrameHistory()
 
 Frame::Frame(uint32_t sequence_num)
     : sequence_num_(sequence_num),
-      monitor_logger_buffer_(common::monitor::MonitorMessageItem::PLANNING) {
-  init_data_ = false;
-}
+      monitor_logger_buffer_(common::monitor::MonitorMessageItem::PLANNING) {}
 
 Frame::Frame(uint32_t sequence_num, const LocalView &local_view,
              const common::TrajectoryPoint &planning_start_point,
-             const double start_time, const common::VehicleState &vehicle_state,
-             ReferenceLineProvider *reference_line_provider,
-             ADCTrajectory *output_trajectory)
+             const common::VehicleState &vehicle_state,
+             ReferenceLineProvider *reference_line_provider)
     : sequence_num_(sequence_num),
       local_view_(local_view),
       planning_start_point_(planning_start_point),
-      start_time_(start_time),
       vehicle_state_(vehicle_state),
-      output_trajectory_(output_trajectory),
       reference_line_provider_(reference_line_provider),
-      monitor_logger_buffer_(common::monitor::MonitorMessageItem::PLANNING),
-      init_data_(true) {}
+      monitor_logger_buffer_(common::monitor::MonitorMessageItem::PLANNING) {}
 
 Frame::Frame(uint32_t sequence_num, const LocalView &local_view,
              const common::TrajectoryPoint &planning_start_point,
-             const double start_time, const common::VehicleState &vehicle_state,
-             ADCTrajectory *output_trajectory)
-    : Frame(sequence_num, local_view, planning_start_point, start_time,
-            vehicle_state, nullptr, output_trajectory) {}
+             const common::VehicleState &vehicle_state)
+    : Frame(sequence_num, local_view, planning_start_point, vehicle_state,
+            nullptr) {}
 
 const common::TrajectoryPoint &Frame::PlanningStartPoint() const {
   return planning_start_point_;
@@ -337,6 +334,7 @@ Status Frame::Init(
     const std::list<ReferenceLine> &reference_lines,
     const std::list<hdmap::RouteSegments> &segments,
     const std::vector<routing::LaneWaypoint> &future_route_waypoints) {
+  // TODO(QiL): refactor this to avoid redudant nullptr checks in scenarios.
   auto status = InitFrameData();
   if (!status.ok()) {
     AERROR << "failed to init frame:" << status.ToString();
@@ -348,7 +346,6 @@ Status Frame::Init(
     return Status(ErrorCode::PLANNING_ERROR, msg);
   }
   future_route_waypoints_ = future_route_waypoints;
-
   return Status::OK();
 }
 
@@ -358,19 +355,12 @@ Status Frame::InitFrameData() {
   hdmap_ = hdmap::HDMapUtil::BaseMapPtr();
   CHECK_NOTNULL(hdmap_);
   vehicle_state_ = common::VehicleStateProvider::Instance()->vehicle_state();
-  const auto &point = common::util::MakePointENU(
-      vehicle_state_.x(), vehicle_state_.y(), vehicle_state_.z());
-  if (std::isnan(point.x()) || std::isnan(point.y())) {
-    AERROR << "init point is not set";
-    return Status(ErrorCode::PLANNING_ERROR, "init point is not set");
+  if (!util::IsVehicleStateValid(vehicle_state_)) {
+    AERROR << "Adc init point is not set";
+    return Status(ErrorCode::PLANNING_ERROR, "Adc init point is not set");
   }
   ADEBUG << "Enabled align prediction time ? : " << std::boolalpha
          << FLAGS_align_prediction_time;
-
-  // if (FLAGS_enable_lag_prediction && lag_predictor_) {
-  // lag_predictor_->GetLaggedPrediction(
-  //    local_view_.prediction_obstacles.get());
-  //}
 
   if (FLAGS_align_prediction_time) {
     auto prediction = *(local_view_.prediction_obstacles);
@@ -391,6 +381,9 @@ Status Frame::InitFrameData() {
       return Status(ErrorCode::PLANNING_ERROR, err_str);
     }
   }
+
+  ReadTrafficLights();
+
   return Status::OK();
 }
 
@@ -481,6 +474,40 @@ void Frame::AddObstacle(const Obstacle &obstacle) {
   obstacles_.Add(obstacle.Id(), obstacle);
 }
 
+void Frame::ReadTrafficLights() {
+  traffic_lights_.clear();
+
+  const auto traffic_light_detection = local_view_.traffic_light;
+  if (traffic_light_detection == nullptr) {
+    return;
+  }
+  const double delay =
+      traffic_light_detection->header().timestamp_sec() - Clock::NowInSeconds();
+  if (delay > FLAGS_signal_expire_time_sec) {
+    ADEBUG << "traffic signals msg is expired, delay = " << delay
+           << " seconds.";
+    return;
+  }
+  for (const auto &traffic_light : traffic_light_detection->traffic_light()) {
+    traffic_lights_[traffic_light.id()] = &traffic_light;
+  }
+}
+
+perception::TrafficLight Frame::GetSignal(
+    const std::string &traffic_light_id) const {
+  const auto *result =
+      apollo::common::util::FindPtrOrNull(traffic_lights_, traffic_light_id);
+  if (result == nullptr) {
+    perception::TrafficLight traffic_light;
+    traffic_light.set_id(traffic_light_id);
+    traffic_light.set_color(perception::TrafficLight::UNKNOWN);
+    traffic_light.set_confidence(0.0);
+    traffic_light.set_tracking_time(0.0);
+    return traffic_light;
+  }
+  return *result;
+}
+
 const ReferenceLineInfo *Frame::FindDriveReferenceLineInfo() {
   double min_cost = std::numeric_limits<double>::infinity();
   drive_reference_line_info_ = nullptr;
@@ -501,5 +528,6 @@ const ReferenceLineInfo *Frame::DriveReferenceLineInfo() const {
 const std::vector<const Obstacle *> Frame::obstacles() const {
   return obstacles_.Items();
 }
+
 }  // namespace planning
 }  // namespace apollo

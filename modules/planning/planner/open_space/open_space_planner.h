@@ -37,12 +37,6 @@
 #include "modules/planning/proto/planning_config.pb.h"
 #include "modules/planning/proto/planning_internal.pb.h"
 
-/*
-Initially inspired by "Optimization-Based Collision Avoidance"
-(arXiv:1711.03449) from Xiaojing Zhang , Alexander Liniger and Francesco
-Borrelli
-*/
-
 /**
  * @namespace apollo::planning
  * @brief apollo::planning
@@ -66,9 +60,8 @@ struct OpenSpaceThreadData {
 /**
  * @class OpenSpacePlanner
  * @brief OpenSpacePlanner is a derived class of Planner.
- *        It reads a recorded trajectory from a trajectory file and
- *        outputs proper segment of the trajectory according to vehicle
- * position.
+ *        It reads a recorded trajectory from a trajectory file and outputs
+ *        proper segment of the trajectory according to vehicle position.
  */
 
 class OpenSpacePlanner : public Planner {
@@ -91,8 +84,8 @@ class OpenSpacePlanner : public Planner {
    * @brief override function Plan in parent class Planner.
    */
   apollo::common::Status Plan(
-      const common::TrajectoryPoint& planning_init_point,
-      Frame* frame) override {
+      const common::TrajectoryPoint& planning_init_point, Frame* frame,
+      ADCTrajectory* ptr_computed_trajectory) override {
     return Status::OK();
   }
 
@@ -112,9 +105,9 @@ class OpenSpacePlanner : public Planner {
                                 const Vec2d& translate_origin);
 
  private:
-  apollo::planning::PlannerOpenSpaceConfig planner_open_space_config_;
-  apollo::planning::DistanceApproachConfig distance_approach_config_;
-  std::unique_ptr<::apollo::planning::OpenSpaceTrajectoryGenerator>
+  PlannerOpenSpaceConfig planner_open_space_config_;
+  DistanceApproachConfig distance_approach_config_;
+  std::unique_ptr<OpenSpaceTrajectoryGenerator>
       open_space_trajectory_generator_;
   std::unique_ptr<OpenSpaceROI> open_space_roi_generator_;
 
@@ -132,7 +125,7 @@ class OpenSpacePlanner : public Planner {
 
   planning_internal::OpenSpaceDebug open_space_debug_;
   apollo::common::Trajectory trajectory_to_end_;
-  apollo::planning::ADCTrajectory trajectory_to_end_pb_;
+  ADCTrajectory trajectory_to_end_pb_;
 
   OpenSpaceThreadData thread_data_;
   std::future<void> task_future_;

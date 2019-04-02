@@ -174,7 +174,8 @@ inline int IAssignPointToVoxel(const T *data, T bound_x_min, T bound_x_max,
   return (i);
 }
 
-template <typename T> class Voxel {
+template <typename T>
+class Voxel {
  public:
   Voxel() {}
   ~Voxel() {}
@@ -702,7 +703,7 @@ bool VoxelGridXY<T>::Set(const T *data, unsigned int nr_points,
         static_cast<int>(nr_voxel_x_), static_cast<int>(nr_voxel_y_));
 
     if (id >= 0) {
-      voxels_[id].push_back(n);
+      voxels_[id].indices_.push_back(n);
     }
   }
 

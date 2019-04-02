@@ -26,22 +26,18 @@ namespace prediction {
 
 using apollo::common::ErrorCode;
 using apollo::common::Status;
+using apollo::common::math::NormalizeAngle;
 using apollo::hdmap::Lane;
 using apollo::hdmap::LaneInfo;
-using apollo::common::math::NormalizeAngle;
-
 
 // Custom helper functions for sorting purpose.
-bool HeadingIsAtLeft(std::vector<double> heading1,
-                     std::vector<double> heading2,
+bool HeadingIsAtLeft(std::vector<double> heading1, std::vector<double> heading2,
                      size_t idx);
 bool IsAtLeft(std::shared_ptr<const LaneInfo> lane1,
               std::shared_ptr<const LaneInfo> lane2);
 int ConvertTurnTypeToDegree(std::shared_ptr<const LaneInfo> lane);
 
-
-bool HeadingIsAtLeft(std::vector<double> heading1,
-                     std::vector<double> heading2,
+bool HeadingIsAtLeft(std::vector<double> heading1, std::vector<double> heading2,
                      size_t idx) {
   if (heading1.empty() || heading2.empty()) {
     return true;
@@ -51,7 +47,7 @@ bool HeadingIsAtLeft(std::vector<double> heading1,
   }
   if (NormalizeAngle(heading1[idx] - heading2[idx]) > 0.0) {
     return true;
-  } else if (NormalizeAngle(heading1[idx] - heading2[idx] < 0.0)) {
+  } else if (NormalizeAngle(heading1[idx] - heading2[idx]) < 0.0) {
     return false;
   } else {
     return HeadingIsAtLeft(heading1, heading2, idx + 1);
@@ -89,8 +85,12 @@ int ConvertTurnTypeToDegree(std::shared_ptr<const LaneInfo> lane) {
 }
 
 RoadGraph::RoadGraph(const double start_s, const double length,
+                     const bool consider_divide,
                      std::shared_ptr<const LaneInfo> lane_info_ptr)
-    : start_s_(start_s), length_(length), lane_info_ptr_(lane_info_ptr) {}
+    : start_s_(start_s),
+      length_(length),
+      consider_divide_(consider_divide),
+      lane_info_ptr_(lane_info_ptr) {}
 
 Status RoadGraph::BuildLaneGraph(LaneGraph* const lane_graph_ptr) {
   // Sanity checks.
@@ -110,7 +110,7 @@ Status RoadGraph::BuildLaneGraph(LaneGraph* const lane_graph_ptr) {
   std::vector<LaneSegment> lane_segments;
   double accumulated_s = 0.0;
   ComputeLaneSequence(accumulated_s, start_s_, lane_info_ptr_,
-                      FLAGS_road_graph_max_search_horizon,
+                      FLAGS_road_graph_max_search_horizon, consider_divide_,
                       &lane_segments, lane_graph_ptr);
 
   return Status::OK();
@@ -137,7 +137,7 @@ bool RoadGraph::IsOnLaneGraph(std::shared_ptr<const LaneInfo> lane_info_ptr,
 void RoadGraph::ComputeLaneSequence(
     const double accumulated_s, const double start_s,
     std::shared_ptr<const LaneInfo> lane_info_ptr,
-    const int graph_search_horizon,
+    const int graph_search_horizon, const bool consider_divide,
     std::vector<LaneSegment>* const lane_segments,
     LaneGraph* const lane_graph_ptr) const {
   // Sanity checks.
@@ -165,7 +165,6 @@ void RoadGraph::ComputeLaneSequence(
   lane_segment.set_total_length(lane_info_ptr->total_length());
   lane_segments->push_back(std::move(lane_segment));
 
-
   if (accumulated_s + lane_info_ptr->total_length() - start_s >= length_ ||
       lane_info_ptr->lane().successor_id_size() == 0) {
     // End condition: if search reached the max. search distance,
@@ -181,19 +180,76 @@ void RoadGraph::ComputeLaneSequence(
     // Sort the successor lane_segments from left to right.
     std::vector<std::shared_ptr<const hdmap::LaneInfo>> successor_lanes;
     for (const auto& successor_lane_id : lane_info_ptr->lane().successor_id()) {
-      successor_lanes.push_back
-          (PredictionMap::LaneById(successor_lane_id.id()));
+      successor_lanes.push_back(
+          PredictionMap::LaneById(successor_lane_id.id()));
     }
     std::sort(successor_lanes.begin(), successor_lanes.end(), IsAtLeft);
 
-    // Run recursion function to perform DFS.
-    for (size_t i = 0; i < successor_lanes.size(); i++) {
-      ComputeLaneSequence(successor_accumulated_s, 0.0, successor_lanes[i],
-                          graph_search_horizon - 1,
-                          lane_segments, lane_graph_ptr);
+    if (!successor_lanes.empty()) {
+      if (consider_divide) {
+        if (successor_lanes.size() > 1) {
+          // Run recursion function to perform DFS.
+          for (size_t i = 0; i < successor_lanes.size(); i++) {
+            ComputeLaneSequence(
+                successor_accumulated_s, 0.0, successor_lanes[i],
+                graph_search_horizon - 1,  false, lane_segments,
+                lane_graph_ptr);
+          }
+        } else {
+          ComputeLaneSequence(
+              successor_accumulated_s, 0.0, successor_lanes[0],
+              graph_search_horizon - 1,  true, lane_segments,
+              lane_graph_ptr);
+        }
+      } else {
+        auto selected_successor_lane =
+            LaneWithSmallestAverageCurvature(successor_lanes);
+          ComputeLaneSequence(
+              successor_accumulated_s, 0.0, selected_successor_lane,
+              graph_search_horizon - 1,  false, lane_segments,
+              lane_graph_ptr);
+      }
     }
   }
   lane_segments->pop_back();
+}
+
+std::shared_ptr<const hdmap::LaneInfo>
+RoadGraph::LaneWithSmallestAverageCurvature(
+    const std::vector<std::shared_ptr<const hdmap::LaneInfo>>& lane_infos)
+    const {
+  CHECK(!lane_infos.empty());
+  size_t sample_size = FLAGS_sample_size_for_average_lane_curvature;
+  std::shared_ptr<const hdmap::LaneInfo> selected_lane_info = lane_infos[0];
+  double smallest_curvature =
+      AverageCurvature(selected_lane_info->id().id(), sample_size);
+  for (size_t i = 1; i < lane_infos.size(); ++i) {
+    std::shared_ptr<const hdmap::LaneInfo> lane_info = lane_infos[i];
+    double curvature = AverageCurvature(lane_info->id().id(), sample_size);
+    if (curvature < smallest_curvature) {
+      smallest_curvature = curvature;
+      selected_lane_info = lane_info;
+    }
+  }
+  return selected_lane_info;
+}
+
+double RoadGraph::AverageCurvature(const std::string& lane_id,
+                                   const size_t sample_size) const {
+  CHECK_GT(sample_size, 0);
+  std::shared_ptr<const hdmap::LaneInfo> lane_info_ptr =
+      PredictionMap::LaneById(lane_id);
+  if (lane_info_ptr == nullptr) {
+    return 0.0;
+  }
+  double lane_length = lane_info_ptr->total_length();
+  double s_gap = lane_length / static_cast<double>(sample_size);
+  double curvature_sum = 0.0;
+  for (size_t i = 0; i < sample_size; ++i) {
+    double s = s_gap * static_cast<double>(i);
+    curvature_sum += std::abs(PredictionMap::CurvatureOnLane(lane_id, s));
+  }
+  return curvature_sum / static_cast<double>(sample_size);
 }
 
 }  // namespace prediction

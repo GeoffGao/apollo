@@ -20,6 +20,7 @@ message ObstacleConf {
     CRUISE_MLP_EVALUATOR = 3;
     JUNCTION_MLP_EVALUATOR = 4;
     CYCLIST_KEEP_LANE_EVALUATOR = 5;
+    LANE_SCANNING_EVALUATOR = 6;
   }
 
   enum PredictorType {
@@ -30,6 +31,8 @@ message ObstacleConf {
     EMPTY_PREDICTOR = 4;
     SINGLE_LANE_PREDICTOR = 5;
     JUNCTION_PREDICTOR = 6;
+    EXTRAPOLATION_PREDICTOR = 7;
+    INTERACTION_PREDICTOR = 8;
   }
 
   optional apollo.perception.PerceptionObstacle.Type obstacle_type = 1;

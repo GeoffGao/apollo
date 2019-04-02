@@ -42,16 +42,12 @@ namespace lane_follow {
 
 class LaneFollowScenario : public Scenario {
  public:
-  explicit LaneFollowScenario(const ScenarioConfig& config,
-                              const ScenarioContext* context)
+  LaneFollowScenario(const ScenarioConfig& config,
+                     const ScenarioContext* context)
       : Scenario(config, context) {}
 
   std::unique_ptr<Stage> CreateStage(
       const ScenarioConfig::StageConfig& stage_config) override;
-
-  bool IsTransferable(const Scenario& current_scenario,
-                      const common::TrajectoryPoint& ego_point,
-                      const Frame& frame) override;
 };
 
 }  // namespace lane_follow

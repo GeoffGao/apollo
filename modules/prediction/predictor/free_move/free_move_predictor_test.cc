@@ -16,6 +16,7 @@
 
 #include "modules/prediction/predictor/free_move/free_move_predictor.h"
 
+#include "cyber/common/file.h"
 #include "modules/prediction/common/kml_map_based_test.h"
 #include "modules/prediction/common/prediction_gflags.h"
 #include "modules/prediction/container/obstacles/obstacles_container.h"
@@ -26,7 +27,7 @@ namespace prediction {
 class FreeMovePredictorTest : public KMLMapBasedTest {
  public:
   FreeMovePredictorTest() {
-    CHECK(apollo::common::util::GetProtoFromFile(
+    CHECK(cyber::common::GetProtoFromFile(
         "modules/prediction/testdata/single_perception_vehicle_offlane.pb.txt",
         &perception_obstacles_));
     FLAGS_p_var = 0.1;
@@ -47,7 +48,7 @@ TEST_F(FreeMovePredictorTest, General) {
   ObstaclesContainer container;
   container.Insert(perception_obstacles_);
   Obstacle* obstacle_ptr = container.GetObstacle(15);
-  EXPECT_TRUE(obstacle_ptr != nullptr);
+  EXPECT_NE(obstacle_ptr, nullptr);
   FreeMovePredictor predictor;
   predictor.Predict(obstacle_ptr);
   const std::vector<Trajectory>& trajectories = predictor.trajectories();

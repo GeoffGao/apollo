@@ -17,7 +17,6 @@ cc_library(
         ":llc_motionfeedback2_21",
         ":llc_vehiclelimits_24",
         ":llc_vehiclestatus_25",
-
     ],
 )
 
@@ -33,7 +32,18 @@ cc_library(
     deps = [
         "//modules/canbus/proto:canbus_proto",
         "//modules/drivers/canbus/can_comm:message_manager_base",
-        "//modules/drivers/canbus/common:canbus_common",  
+        "//modules/drivers/canbus/common:canbus_common",
+    ],
+)
+
+cc_test(
+    name = "Auxiliarycontrol_110_test",
+    size = "small",
+    srcs = ["adc_auxiliarycontrol_110_test.cc"],
+    deps = [
+        ":adc_auxiliarycontrol_110",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
     ],
 )
 
@@ -49,11 +59,20 @@ cc_library(
     deps = [
         "//modules/canbus/proto:canbus_proto",
         "//modules/drivers/canbus/can_comm:message_manager_base",
-        "//modules/drivers/canbus/common:canbus_common",  
+        "//modules/drivers/canbus/common:canbus_common",
     ],
 )
 
-
+cc_test(
+    name = "adc_motioncontrol1_10_test",
+    size = "small",
+    srcs = ["adc_motioncontrol1_10_test.cc"],
+    deps = [
+        ":adc_motioncontrol1_10",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
+    ],
+)
 
 cc_library(
     name = "adc_motioncontrollimits1_12",
@@ -67,11 +86,20 @@ cc_library(
     deps = [
         "//modules/canbus/proto:canbus_proto",
         "//modules/drivers/canbus/can_comm:message_manager_base",
-        "//modules/drivers/canbus/common:canbus_common",  
+        "//modules/drivers/canbus/common:canbus_common",
     ],
 )
 
-
+cc_test(
+    name = "Motioncontrollimits1_12",
+    size = "small",
+    srcs = ["adc_motioncontrollimits1_12_test.cc"],
+    deps = [
+        ":adc_motioncontrollimits1_12",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
+    ],
+)
 
 cc_library(
     name = "llc_auxiliaryfeedback_120",
@@ -85,10 +113,20 @@ cc_library(
     deps = [
         "//modules/canbus/proto:canbus_proto",
         "//modules/drivers/canbus/can_comm:message_manager_base",
-        "//modules/drivers/canbus/common:canbus_common",      
+        "//modules/drivers/canbus/common:canbus_common",
     ],
 )
 
+cc_test(
+    name = "llc_auxiliaryfeedback_120_test",
+    size = "small",
+    srcs = ["llc_auxiliaryfeedback_120_test.cc"],
+    deps = [
+        ":llc_auxiliaryfeedback_120",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
+    ],
+)
 
 cc_library(
     name = "llc_diag_brakecontrol_721",
@@ -102,7 +140,18 @@ cc_library(
     deps = [
         "//modules/canbus/proto:canbus_proto",
         "//modules/drivers/canbus/can_comm:message_manager_base",
-        "//modules/drivers/canbus/common:canbus_common",  
+        "//modules/drivers/canbus/common:canbus_common",
+    ],
+)
+
+cc_test(
+    name = "llc_diag_brakecontrol_721_test",
+    size = "small",
+    srcs = ["llc_diag_brakecontrol_721_test.cc"],
+    deps = [
+        ":llc_diag_brakecontrol_721",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
     ],
 )
 
@@ -118,7 +167,18 @@ cc_library(
     deps = [
         "//modules/canbus/proto:canbus_proto",
         "//modules/drivers/canbus/can_comm:message_manager_base",
-        "//modules/drivers/canbus/common:canbus_common",  
+        "//modules/drivers/canbus/common:canbus_common",
+    ],
+)
+
+cc_test(
+    name = "Diag_fault_620_test",
+    size = "small",
+    srcs = ["llc_diag_fault_620_test.cc"],
+    deps = [
+        ":llc_diag_fault_620",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
     ],
 )
 
@@ -134,7 +194,18 @@ cc_library(
     deps = [
         "//modules/canbus/proto:canbus_proto",
         "//modules/drivers/canbus/can_comm:message_manager_base",
-        "//modules/drivers/canbus/common:canbus_common",  
+        "//modules/drivers/canbus/common:canbus_common",
+    ],
+)
+
+cc_test(
+    name = "llc_diag_steeringcontrol_722_test",
+    size = "small",
+    srcs = ["llc_diag_steeringcontrol_722_test.cc"],
+    deps = [
+        ":llc_diag_steeringcontrol_722",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
     ],
 )
 
@@ -150,7 +221,18 @@ cc_library(
     deps = [
         "//modules/canbus/proto:canbus_proto",
         "//modules/drivers/canbus/can_comm:message_manager_base",
-        "//modules/drivers/canbus/common:canbus_common",  
+        "//modules/drivers/canbus/common:canbus_common",
+    ],
+)
+
+cc_test(
+    name = "Motioncommandfeedback1_22_test",
+    size = "small",
+    srcs = ["llc_motioncommandfeedback1_22_test.cc"],
+    deps = [
+        ":llc_motioncommandfeedback1_22",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
     ],
 )
 
@@ -170,6 +252,16 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "Motionfeedback1_20_test",
+    size = "small",
+    srcs = ["llc_motionfeedback1_20_test.cc"],
+    deps = [
+        ":llc_motionfeedback1_20",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
+    ],
+)
 
 cc_library(
     name = "llc_motionfeedback2_21",
@@ -183,10 +275,20 @@ cc_library(
     deps = [
         "//modules/canbus/proto:canbus_proto",
         "//modules/drivers/canbus/can_comm:message_manager_base",
-        "//modules/drivers/canbus/common:canbus_common",  
+        "//modules/drivers/canbus/common:canbus_common",
     ],
 )
 
+cc_test(
+    name = "llc_motionfeedback2_21_test",
+    size = "small",
+    srcs = ["llc_motionfeedback2_21_test.cc"],
+    deps = [
+        ":llc_motionfeedback2_21",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
+    ],
+)
 
 cc_library(
     name = "llc_vehiclelimits_24",
@@ -200,7 +302,18 @@ cc_library(
     deps = [
         "//modules/canbus/proto:canbus_proto",
         "//modules/drivers/canbus/can_comm:message_manager_base",
-        "//modules/drivers/canbus/common:canbus_common",  
+        "//modules/drivers/canbus/common:canbus_common",
+    ],
+)
+
+cc_test(
+    name = "Vehiclelimits_24_test",
+    size = "small",
+    srcs = ["llc_vehiclelimits_24_test.cc"],
+    deps = [
+        ":llc_vehiclelimits_24",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
     ],
 )
 
@@ -216,7 +329,19 @@ cc_library(
     deps = [
         "//modules/canbus/proto:canbus_proto",
         "//modules/drivers/canbus/can_comm:message_manager_base",
-        "//modules/drivers/canbus/common:canbus_common",  
+        "//modules/drivers/canbus/common:canbus_common",
     ],
 )
+
+cc_test(
+    name = "llc_vehiclestatus_25_test",
+    size = "small",
+    srcs = ["llc_vehiclestatus_25_test.cc"],
+    deps = [
+        ":llc_vehiclestatus_25",
+        "//modules/canbus/vehicle/transit/protocol:canbus_transit_protocol",
+        "@gtest//:main",
+    ],
+)
+
 cpplint()

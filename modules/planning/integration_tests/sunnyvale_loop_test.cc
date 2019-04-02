@@ -40,13 +40,12 @@ class SunnyvaleLoopTest : public PlanningTestBase {
     FLAGS_use_multi_thread_to_add_obstacles = false;
 
     FLAGS_enable_scenario_side_pass = false;
-    FLAGS_enable_scenario_stop_sign_unprotected = false;
-    FLAGS_enable_scenario_traffic_light_right_turn_unprotected = false;
+    FLAGS_enable_scenario_stop_sign = false;
+    FLAGS_enable_scenario_traffic_light = false;
     FLAGS_enable_rss_info = false;
 
     ENABLE_RULE(TrafficRuleConfig::CROSSWALK, false);
     ENABLE_RULE(TrafficRuleConfig::PULL_OVER, false);
-    ENABLE_RULE(TrafficRuleConfig::STOP_SIGN, false);
   }
 };
 
@@ -162,13 +161,13 @@ TEST_F(SunnyvaleLoopTest, rightturn_01) {
   FLAGS_test_prediction_file = seq_num + "_prediction.pb.txt";
   FLAGS_test_localization_file = seq_num + "_localization.pb.txt";
   FLAGS_test_chassis_file = seq_num + "_chassis.pb.txt";
-  ENABLE_RULE(TrafficRuleConfig::SIGNAL_LIGHT, false);
+  ENABLE_RULE(TrafficRuleConfig::TRAFFIC_LIGHT, true);
   PlanningTestBase::SetUp();
   RUN_GOLDEN_TEST(0);
 }
 
 /*
- * test right turn, but stop before trafic light
+ * test right turn, but stop before traffic light
  * A right turn test case
  * A traffic light test case
  */
@@ -250,8 +249,8 @@ TEST_F(SunnyvaleLoopTest, qp_path_failure) {
  * Expect to keep going on the current lane.
  */
 TEST_F(SunnyvaleLoopTest, change_lane_failback) {
-  //// temporarly disable this test case, because a lane in routing cannot be
-  //// found on test map.
+  // temporarily disable this test case, because a lane in routing cannot be
+  // found on test map.
   auto target_lane = hdmap::HDMapUtil::BaseMapPtr()->GetLaneById(
       hdmap::MakeMapId("2020_1_-2"));
   if (target_lane == nullptr) {
